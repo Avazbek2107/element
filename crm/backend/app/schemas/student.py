@@ -64,6 +64,10 @@ class StudentOut(BaseModel):
     avatar_url: Optional[str] = None
     doc_type: Optional[str] = None
     doc_series: Optional[str] = None
+    link_code: Optional[str] = None
+    student_link_code: Optional[str] = None
+    parent_telegram_id: Optional[str] = None
+    student_telegram_id: Optional[str] = None
     enrolled_date: Optional[date]
     course_start_date: Optional[date]
     course_end_date: Optional[date]

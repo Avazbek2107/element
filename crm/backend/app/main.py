@@ -1,22 +1,32 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
-from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials
+from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials, ai, telegram
 from app.models import room as _room_model        # noqa: F401 — table auto-create
 from app.models import material as _material_model  # noqa: F401 — table auto-create
 
 # Jadvallarni yaratish
 Base.metadata.create_all(bind=engine)
 
-# SQLite migration: late_minutes ustunini qo'shish (agar mavjud bo'lmasa)
-try:
-    with engine.connect() as conn:
-        conn.execute(__import__("sqlalchemy").text(
-            "ALTER TABLE attendances ADD COLUMN late_minutes INTEGER"
-        ))
-        conn.commit()
-except Exception:
-    pass  # ustun allaqachon mavjud
+_text = __import__("sqlalchemy").text
+_migrations = [
+    "ALTER TABLE attendances ADD COLUMN late_minutes INTEGER",
+    "ALTER TABLE attendances ADD COLUMN module_id INTEGER REFERENCES modules(id) ON DELETE SET NULL",
+    "ALTER TABLE attendances ADD COLUMN topic_id  INTEGER REFERENCES topics(id)  ON DELETE SET NULL",
+    "ALTER TYPE attendancestatus ADD VALUE IF NOT EXISTS 'excused'",
+    "ALTER TABLE student_profiles ADD COLUMN link_code VARCHAR(12)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_student_profiles_link_code ON student_profiles(link_code)",
+    "ALTER TABLE student_profiles ADD COLUMN student_link_code VARCHAR(12)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_student_profiles_student_link_code ON student_profiles(student_link_code)",
+    "ALTER TABLE tests ADD COLUMN answer_key VARCHAR(500)",
+]
+for _sql in _migrations:
+    try:
+        with engine.connect() as _conn:
+            _conn.execute(_text(_sql))
+            _conn.commit()
+    except Exception:
+        pass
 
 app = FastAPI(title="O'quv Markazi CRM", version="1.0.0")
 
@@ -43,6 +53,8 @@ app.include_router(users.router)
 app.include_router(results.router)
 app.include_router(rooms.router)
 app.include_router(materials.router)
+app.include_router(ai.router)
+app.include_router(telegram.router)
 
 
 @app.get("/api/health")

@@ -18,6 +18,8 @@ class StudentProfile(Base):
     gender = Column(String(6), nullable=True)  # male | female
     doc_type = Column(String(20), nullable=True)    # passport | birth_cert
     doc_series = Column(String(30), nullable=True)
+    link_code         = Column(String(12), unique=True, nullable=True)  # Ota-ona Telegram bog'lash kodi
+    student_link_code = Column(String(12), unique=True, nullable=True)  # O'quvchi Telegram bog'lash kodi
     avatar_url = Column(String(255), nullable=True)
     enrolled_date = Column(Date, server_default=func.current_date())
     course_start_date = Column(Date, nullable=True)

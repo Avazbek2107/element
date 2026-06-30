@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { studentsApi, groupsApi } from '../services/api'
+import { studentsApi, groupsApi, telegramApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 import Avatar from '../components/GenderAvatar'
@@ -73,10 +73,10 @@ export default function Students() {
   return (
     <div className="space-y-5">
       {/* Title row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-800">O'quvchilar</h1>
         {isTeacher && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <label className={`cursor-pointer border border-blue-500 text-blue-600 px-4 py-2 rounded-lg text-sm hover:bg-blue-50 ${importing ? 'opacity-50 pointer-events-none' : ''}`}>
               {importing ? 'Yuklanmoqda...' : 'Import (CSV/Excel)'}
               <input ref={fileRef} type="file" accept=".csv,.xlsx" className="hidden"
@@ -110,12 +110,12 @@ export default function Students() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <input type="text" placeholder="Ism yoki telefon bo'yicha qidirish..." value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+          className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
         <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)}
-          className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+          className="shrink-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
           <option value="">Barcha guruhlar</option>
           {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </select>
@@ -131,7 +131,7 @@ export default function Students() {
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {students.map((s) => (
-              <StudentCard key={s.id} student={s} onClick={() => setSelected(s)} />
+              <StudentCard key={s.id} student={s} isTeacher={isTeacher} onClick={() => setSelected(s)} />
             ))}
           </div>
 
@@ -179,10 +179,32 @@ export default function Students() {
 }
 
 /* ── Student Card ── */
-function StudentCard({ student, onClick }) {
+function StudentCard({ student, isTeacher, onClick }) {
   const fish = [student.last_name, student.first_name, student.middle_name]
     .filter(Boolean).join(' ')
   const isFemale = student.gender === 'female'
+  const [code, setCode]       = useState(student.link_code)
+  const [loading, setLoading] = useState(false)
+
+  const getCode = async (e) => {
+    e.stopPropagation()
+    if (loading) return
+    setLoading(true)
+    try {
+      const { data } = await telegramApi.getLinkCode(student.id)
+      setCode(data.link_code)
+    } catch {
+      toast.error('Kodni olishda xato yuz berdi')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const copyCode = (e) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(code)
+    toast.success('Kod nusxalandi')
+  }
 
   return (
     <button
@@ -203,6 +225,29 @@ function StudentCard({ student, onClick }) {
           ? <p className={`text-xs mt-1 font-medium ${isFemale ? 'text-pink-500' : 'text-blue-500'}`}>{student.group_name}</p>
           : <p className="text-xs mt-1 text-gray-300">Guruhsiz</p>
         }
+
+        {isTeacher && (
+          <div className="mt-2 pt-2 border-t border-gray-50">
+            {student.parent_telegram_id ? (
+              <span className="text-xs text-green-600 font-medium">✅ Bog'langan</span>
+            ) : code ? (
+              <span
+                onClick={copyCode}
+                title="Nusxalash uchun bosing"
+                className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-full hover:bg-gray-100"
+              >
+                {code} 📋
+              </span>
+            ) : (
+              <span
+                onClick={getCode}
+                className="text-xs text-blue-500 hover:text-blue-700 font-medium"
+              >
+                {loading ? '...' : 'Kod olish'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </button>
   )

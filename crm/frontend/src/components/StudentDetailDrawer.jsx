@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Avatar from './GenderAvatar'
+import { telegramApi } from '../services/api'
+import toast from 'react-hot-toast'
 
 const Row = ({ label, value }) =>
   value ? (
@@ -8,6 +10,89 @@ const Row = ({ label, value }) =>
       <span className="text-sm text-gray-700 font-medium">{value}</span>
     </div>
   ) : null
+
+function CodeBlock({ label, code, deepLink, isLinked, onLoad, loading }) {
+  const copy = () => {
+    navigator.clipboard.writeText(code)
+    toast.success('Nusxalandi')
+  }
+  return (
+    <div className="p-3 rounded-xl border border-gray-100 bg-gray-50 space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-600">{label}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${isLinked ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+          {isLinked ? "✅ Bog'langan" : "Bog'lanmagan"}
+        </span>
+      </div>
+      {!code && (
+        <button onClick={onLoad} disabled={loading}
+          className="text-xs text-blue-600 hover:text-blue-800 font-medium disabled:opacity-50">
+          {loading ? 'Yuklanmoqda...' : 'Kodni olish'}
+        </button>
+      )}
+      {code && (
+        <>
+          <div className="flex items-center gap-2">
+            <code className="text-sm font-mono font-bold bg-white border border-gray-200 rounded-lg px-3 py-1">
+              {code}
+            </code>
+            <button onClick={copy} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+              Nusxalash
+            </button>
+          </div>
+          {deepLink && (
+            <a href={deepLink} target="_blank" rel="noreferrer"
+              className="inline-block text-xs text-blue-500 hover:text-blue-700">
+              Telegram havolasi →
+            </a>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function TelegramLinkBox({ student }) {
+  const [parentInfo,  setParentInfo]  = useState(null)
+  const [studentInfo, setStudentInfo] = useState(null)
+  const [loadingP, setLoadingP] = useState(false)
+  const [loadingS, setLoadingS] = useState(false)
+
+  const loadParent = async () => {
+    setLoadingP(true)
+    try { const { data } = await telegramApi.getLinkCode(student.id);        setParentInfo(data)  }
+    catch { toast.error('Kodni olishda xato') }
+    finally { setLoadingP(false) }
+  }
+  const loadStudent = async () => {
+    setLoadingS(true)
+    try { const { data } = await telegramApi.getStudentLinkCode(student.id); setStudentInfo(data) }
+    catch { toast.error('Kodni olishda xato') }
+    finally { setLoadingS(false) }
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Telegram bog'lanish</p>
+      <CodeBlock
+        label="Ota-ona kodi"
+        code={parentInfo?.link_code ?? (student.link_code || null)}
+        deepLink={parentInfo?.deep_link}
+        isLinked={parentInfo ? parentInfo.is_linked : !!student.parent_telegram_id}
+        onLoad={loadParent}
+        loading={loadingP}
+      />
+      <CodeBlock
+        label="O'quvchi kodi (test topshirish)"
+        code={studentInfo?.student_link_code ?? (student.student_link_code || null)}
+        deepLink={studentInfo?.deep_link}
+        isLinked={studentInfo ? studentInfo.is_linked : !!student.student_telegram_id}
+        onLoad={loadStudent}
+        loading={loadingS}
+      />
+    </div>
+  )
+}
 
 export default function StudentDetailDrawer({ student, onClose, onEdit }) {
   const drawerRef = useRef()
@@ -129,6 +214,7 @@ export default function StudentDetailDrawer({ student, onClose, onEdit }) {
 
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-5 mb-2">Ota-ona</p>
           <Row label="Ota-ona telefoni" value={student.parent_phone} />
+          <TelegramLinkBox student={student} />
         </div>
       </div>
     </div>

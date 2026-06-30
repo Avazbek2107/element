@@ -14,6 +14,7 @@ from app.schemas.test import (
 )
 from app.utils.auth import get_current_user, require_roles
 from app.utils.parser import parse_docx, parse_pdf
+from app.utils.notify import send_telegram_message
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
@@ -72,6 +73,9 @@ def create_test(
     db: Session = Depends(get_db),
     current_user: User = Depends(AdminOrTeacher),
 ):
+    answer_key = body.answer_key.strip().upper() if body.answer_key else None
+    is_paper = bool(answer_key)
+
     test = Test(
         title=body.title,
         description=body.description,
@@ -80,9 +84,11 @@ def create_test(
         test_type=body.test_type,
         duration_minutes=body.duration_minutes,
         passing_score=body.passing_score,
+        answer_key=answer_key,
         start_date=body.start_date,
         end_date=body.end_date,
-        total_questions=len(body.questions),
+        total_questions=len(answer_key) if is_paper else len(body.questions),
+        is_published=is_paper,   # Qog'oz testlar avtomatik nashr etiladi
     )
     db.add(test)
     db.flush()
@@ -307,6 +313,16 @@ def submit_test(
 
     db.commit()
     db.refresh(result)
+
+    if profile.parent_telegram_id:
+        test = db.query(Test).filter(Test.id == test_id).first()
+        student_name = f"{profile.user.first_name} {profile.user.last_name}"
+        send_telegram_message(
+            profile.parent_telegram_id,
+            f"📝 {student_name} \"{test.title if test else ''}\" testini topshirdi: "
+            f"{correct}/{total} to'g'ri ({percentage}%).",
+        )
+
     return _build_result_out(result)
 
 

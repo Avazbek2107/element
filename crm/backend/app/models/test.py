@@ -30,6 +30,7 @@ class Test(Base):
     total_questions = Column(Integer, default=0)
     passing_score = Column(Integer, default=50)
     is_published = Column(Boolean, default=False)
+    answer_key = Column(String(500), nullable=True)   # Qog'oz test uchun to'g'ri javoblar: "ABDCA..."
     start_date = Column(DateTime, nullable=True)
     end_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())

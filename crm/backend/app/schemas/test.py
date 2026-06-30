@@ -47,6 +47,7 @@ class TestCreate(BaseModel):
     test_type: TestType = TestType.practice
     duration_minutes: int = 30
     passing_score: int = 50
+    answer_key: Optional[str] = None   # Qog'oz test: "ABDCA..."
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     questions: List[QuestionCreate] = []
@@ -74,6 +75,7 @@ class TestOut(BaseModel):
     total_questions: int
     passing_score: int
     is_published: bool
+    answer_key: Optional[str] = None
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     created_at: datetime

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { testsApi, groupsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+
 import TestForm from './TestForm'
 import TestTake from './TestTake'
 import ImportTestModal from '../components/ImportTestModal'
 import StudyMode from '../components/StudyMode'
+import PaperTestModal from '../components/PaperTestModal'
 
 export default function Tests() {
   const { user } = useAuth()
@@ -16,6 +18,7 @@ export default function Tests() {
   const [editTest, setEditTest] = useState(null)
   const [editQuestions, setEditQuestions] = useState(null)
   const [showImport, setShowImport] = useState(false)
+  const [showPaper, setShowPaper] = useState(false)
   const [loadingEdit, setLoadingEdit] = useState(null)
 
   const isTeacher = ['admin', 'teacher'].includes(user?.role)
@@ -92,15 +95,21 @@ export default function Tests() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Testlar</h1>
         {isTeacher && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setShowImport(true)}
               className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm hover:bg-blue-50"
             >
               Word/PDF import
+            </button>
+            <button
+              onClick={() => setShowPaper(true)}
+              className="border border-orange-400 text-orange-600 px-4 py-2 rounded-lg text-sm hover:bg-orange-50"
+            >
+              📄 Qog'oz test
             </button>
             <button
               onClick={() => setView('create')}
@@ -118,14 +127,27 @@ export default function Tests() {
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-semibold text-gray-800 pr-2">{t.title}</h3>
               <div className="flex gap-2 shrink-0">
-                <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
-                  {typeLabels[t.test_type]}
-                </span>
+                {t.answer_key
+                  ? <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">📄 Qog'oz</span>
+                  : <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">{typeLabels[t.test_type]}</span>
+                }
                 <span className={`text-xs px-2 py-0.5 rounded-full ${t.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {t.is_published ? 'Nashr' : 'Qoralama'}
                 </span>
               </div>
             </div>
+            {t.answer_key && (
+              <div className="flex items-center gap-2 mb-2 p-2 bg-orange-50 rounded-lg">
+                <span className="text-xs text-gray-500">Bot uchun ID:</span>
+                <code className="text-sm font-mono font-bold text-orange-700">#{t.id}</code>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(`/javob ${t.id} `); toast.success('Nusxalandi') }}
+                  className="ml-auto text-xs text-orange-600 hover:text-orange-800 font-medium"
+                >
+                  Nusxalash
+                </button>
+              </div>
+            )}
             {t.description && <p className="text-sm text-gray-500 mb-3">{t.description}</p>}
             <div className="flex gap-4 text-xs text-gray-400 mb-4">
               <span>{t.duration_minutes} daqiqa</span>
@@ -186,6 +208,13 @@ export default function Tests() {
         <ImportTestModal
           groups={groups}
           onClose={() => setShowImport(false)}
+          onCreated={load}
+        />
+      )}
+      {showPaper && (
+        <PaperTestModal
+          groups={groups}
+          onClose={() => setShowPaper(false)}
           onCreated={load}
         />
       )}

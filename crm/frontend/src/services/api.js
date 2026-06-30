@@ -52,6 +52,7 @@ export const groupsApi = {
   delete: (id) => api.delete(`/groups/${id}`),
   assignStudent: (groupId, studentId) => api.post(`/groups/${groupId}/students/${studentId}`),
   removeStudent: (groupId, studentId) => api.delete(`/groups/${groupId}/students/${studentId}`),
+  report: (id, params) => api.get(`/groups/${id}/report`, { params }),
 }
 
 export const testsApi = {
@@ -72,8 +73,11 @@ export const testsApi = {
 }
 
 export const usersApi = {
-  importTeachers: (formData) => api.post('/users/import-teachers', formData),
-  listTeachers: () => api.get('/users/teachers'),
+  importTeachers:  (formData) => api.post('/users/import-teachers', formData),
+  listTeachers:    ()         => api.get('/users/teachers'),
+  createTeacher:   (data)     => api.post('/users/teachers', data),
+  updateTeacher:   (id, data) => api.put(`/users/teachers/${id}`, data),
+  deleteTeacher:   (id)       => api.delete(`/users/teachers/${id}`),
 }
 
 export const materialsApi = {
@@ -104,11 +108,23 @@ export const resultsApi = {
 }
 
 export const attendanceApi = {
-  list:    (params)   => api.get('/attendance', { params }),
-  mark:    (data)     => api.post('/attendance', data),
-  summary: (group_id) => api.get('/attendance/summary', { params: { group_id } }),
-  today:   (group_id) => api.get('/attendance/today', { params: group_id ? { group_id } : {} }),
-  day:     (group_id, date) => api.get('/attendance', { params: { group_id, date_from: date, date_to: date } }),
+  list:          (params)         => api.get('/attendance', { params }),
+  mark:          (data)           => api.post('/attendance', data),
+  summary:       (group_id)       => api.get('/attendance/summary', { params: { group_id } }),
+  today:         (group_id)       => api.get('/attendance/today', { params: group_id ? { group_id } : {} }),
+  day:           (group_id, date) => api.get('/attendance', { params: { group_id, date_from: date, date_to: date } }),
+  notifications: ()               => api.get('/attendance/notifications'),
+}
+
+export const aiApi = {
+  generateQuestions: (data)    => api.post('/ai/generate-questions', data),
+  analyzeReport:     (data)    => api.post('/ai/analyze-report', data),
+  chat:              (data)    => api.post('/ai/chat', data),
+}
+
+export const telegramApi = {
+  getLinkCode:        (studentId) => api.get(`/telegram/link-code/${studentId}`),
+  getStudentLinkCode: (studentId) => api.get(`/telegram/student-link-code/${studentId}`),
 }
 
 export default api

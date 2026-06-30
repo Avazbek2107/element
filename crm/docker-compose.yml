@@ -17,6 +17,9 @@ services:
       - DATABASE_URL=postgresql://user:password@db/crm_db
       - SECRET_KEY=change-this-in-production
       - JWT_SECRET=change-this-in-production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-}
     depends_on:
       - db
     ports:
@@ -24,10 +27,25 @@ services:
     volumes:
       - ./backend:/app
 
+  bot:
+    build: ./bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./bot:/app
+
   frontend:
     build: ./frontend
+    environment:
+      - VITE_API_TARGET=http://backend:8000
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
 
