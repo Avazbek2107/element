@@ -4,18 +4,30 @@ import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 import TestForm from './TestForm'
 import TestTake from './TestTake'
+import ImportTestModal from '../components/ImportTestModal'
+import StudyMode from '../components/StudyMode'
 
 export default function Tests() {
   const { user } = useAuth()
   const [tests, setTests] = useState([])
-  const [view, setView] = useState('list') // list | create | take
+  const [groups, setGroups] = useState([])
+  const [view, setView] = useState('list')
   const [selectedTest, setSelectedTest] = useState(null)
+  const [editTest, setEditTest] = useState(null)
+  const [editQuestions, setEditQuestions] = useState(null)
+  const [showImport, setShowImport] = useState(false)
+  const [loadingEdit, setLoadingEdit] = useState(null)
 
   const isTeacher = ['admin', 'teacher'].includes(user?.role)
 
-  const load = () => testsApi.list().then(({ data }) => setTests(data)).catch(() => {})
+  const load = () => {
+    testsApi.list().then(({ data }) => setTests(data)).catch(() => {})
+  }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    if (isTeacher) groupsApi.list().then(({ data }) => setGroups(data)).catch(() => {})
+  }, [])
 
   const handlePublish = async (id) => {
     try {
@@ -38,12 +50,42 @@ export default function Tests() {
     }
   }
 
-  if (view === 'create') {
-    return <TestForm onBack={() => { setView('list'); load() }} />
+  const handleEdit = async (test) => {
+    setLoadingEdit(test.id)
+    try {
+      const { data: questions } = await testsApi.getQuestionsForEdit(test.id)
+      setEditTest(test)
+      setEditQuestions(questions)
+      setView('edit')
+    } catch {
+      toast.error('Savollarni yuklashda xatolik')
+    } finally {
+      setLoadingEdit(null)
+    }
   }
 
+  const handleBackFromEdit = () => {
+    setView('list')
+    setEditTest(null)
+    setEditQuestions(null)
+    load()
+  }
+
+  if (view === 'create') return <TestForm onBack={() => { setView('list'); load() }} />
+  if (view === 'edit' && editTest) {
+    return (
+      <TestForm
+        editTest={editTest}
+        editQuestions={editQuestions}
+        onBack={handleBackFromEdit}
+      />
+    )
+  }
   if (view === 'take' && selectedTest) {
     return <TestTake test={selectedTest} onBack={() => { setView('list'); setSelectedTest(null) }} />
+  }
+  if (view === 'study' && selectedTest) {
+    return <StudyMode test={selectedTest} onBack={() => { setView('list'); setSelectedTest(null) }} />
   }
 
   const typeLabels = { weekly: 'Haftalik', monthly: 'Oylik', final: 'Yakuniy', practice: 'Amaliyot' }
@@ -53,9 +95,20 @@ export default function Tests() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Testlar</h1>
         {isTeacher && (
-          <button onClick={() => setView('create')} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-            + Yangi test
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm hover:bg-blue-50"
+            >
+              Word/PDF import
+            </button>
+            <button
+              onClick={() => setView('create')}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+            >
+              + Yangi test
+            </button>
+          </div>
         )}
       </div>
 
@@ -63,8 +116,8 @@ export default function Tests() {
         {tests.map((t) => (
           <div key={t.id} className="bg-white rounded-xl shadow-sm p-5">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="font-semibold text-gray-800">{t.title}</h3>
-              <div className="flex gap-2">
+              <h3 className="font-semibold text-gray-800 pr-2">{t.title}</h3>
+              <div className="flex gap-2 shrink-0">
                 <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
                   {typeLabels[t.test_type]}
                 </span>
@@ -75,23 +128,50 @@ export default function Tests() {
             </div>
             {t.description && <p className="text-sm text-gray-500 mb-3">{t.description}</p>}
             <div className="flex gap-4 text-xs text-gray-400 mb-4">
-              <span>⏱ {t.duration_minutes} daqiqa</span>
-              <span>❓ {t.total_questions} savol</span>
-              <span>✅ O'tish: {t.passing_score}%</span>
+              <span>{t.duration_minutes} daqiqa</span>
+              <span>{t.total_questions} savol</span>
+              <span>O'tish: {t.passing_score}%</span>
             </div>
-            <div className="flex gap-2 pt-3 border-t border-gray-100">
+            <div className="flex gap-3 pt-3 border-t border-gray-100 flex-wrap items-center">
               {isTeacher && (
                 <>
                   {!t.is_published && (
-                    <button onClick={() => handlePublish(t.id)} className="text-green-600 text-xs hover:underline">Nashr etish</button>
+                    <button onClick={() => handlePublish(t.id)} className="text-green-600 text-xs hover:underline">
+                      Nashr etish
+                    </button>
                   )}
-                  <button onClick={() => handleDelete(t.id)} className="text-red-500 text-xs hover:underline">O'chirish</button>
+                  <button
+                    onClick={() => handleEdit(t)}
+                    disabled={loadingEdit === t.id}
+                    className="text-blue-600 text-xs hover:underline disabled:opacity-50"
+                  >
+                    {loadingEdit === t.id ? 'Yuklanmoqda...' : 'Tahrirlash'}
+                  </button>
+                  <button
+                    onClick={() => { setSelectedTest(t); setView('study') }}
+                    className="text-indigo-600 text-xs hover:underline"
+                  >
+                    O'qitish rejimi
+                  </button>
+                  <button onClick={() => handleDelete(t.id)} className="text-red-500 text-xs hover:underline">
+                    O'chirish
+                  </button>
                 </>
               )}
               {!isTeacher && t.is_published && (
-                <button onClick={() => { setSelectedTest(t); setView('take') }}
-                  className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs hover:bg-blue-700">
+                <button
+                  onClick={() => { setSelectedTest(t); setView('take') }}
+                  className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-xs hover:bg-blue-700"
+                >
                   Testni boshlash
+                </button>
+              )}
+              {!isTeacher && t.is_published && (
+                <button
+                  onClick={() => { setSelectedTest(t); setView('study') }}
+                  className="border border-gray-200 text-gray-600 px-4 py-1.5 rounded-lg text-xs hover:bg-gray-50"
+                >
+                  O'rganish
                 </button>
               )}
             </div>
@@ -101,6 +181,14 @@ export default function Tests() {
           <p className="col-span-2 text-center text-gray-400 py-12">Testlar topilmadi</p>
         )}
       </div>
+
+      {showImport && (
+        <ImportTestModal
+          groups={groups}
+          onClose={() => setShowImport(false)}
+          onCreated={load}
+        />
+      )}
     </div>
   )
 }

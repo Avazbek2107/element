@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 
 
 class StudentCreate(BaseModel):
@@ -15,6 +15,8 @@ class StudentCreate(BaseModel):
     parent_phone: Optional[str] = None
     parent_telegram_id: Optional[str] = None
     address: Optional[str] = None
+    doc_type: Optional[str] = None
+    doc_series: Optional[str] = None
     course_start_date: Optional[date] = None
     course_end_date: Optional[date] = None
 
@@ -22,6 +24,8 @@ class StudentCreate(BaseModel):
 class StudentUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    gender: Optional[str] = None
     phone: Optional[str] = None
     group_id: Optional[int] = None
     birth_date: Optional[date] = None
@@ -29,8 +33,18 @@ class StudentUpdate(BaseModel):
     parent_telegram_id: Optional[str] = None
     student_telegram_id: Optional[str] = None
     address: Optional[str] = None
+    doc_type: Optional[str] = None
+    doc_series: Optional[str] = None
     course_start_date: Optional[date] = None
     course_end_date: Optional[date] = None
+
+
+class StudentListOut(BaseModel):
+    items: List['StudentOut']
+    total: int
+
+    class Config:
+        from_attributes = True
 
 
 class StudentOut(BaseModel):
@@ -38,6 +52,8 @@ class StudentOut(BaseModel):
     user_id: int
     first_name: str
     last_name: str
+    middle_name: Optional[str] = None
+    gender: Optional[str] = None
     email: str
     phone: Optional[str]
     group_id: Optional[int]
@@ -45,6 +61,9 @@ class StudentOut(BaseModel):
     birth_date: Optional[date]
     parent_phone: Optional[str]
     address: Optional[str]
+    avatar_url: Optional[str] = None
+    doc_type: Optional[str] = None
+    doc_series: Optional[str] = None
     enrolled_date: Optional[date]
     course_start_date: Optional[date]
     course_end_date: Optional[date]

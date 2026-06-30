@@ -3,10 +3,16 @@ import { useAuth } from '../context/AuthContext'
 import ElementLogo from './ElementLogo'
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: '📊', roles: ['admin', 'teacher'] },
-  { path: '/students', label: "O'quvchilar", icon: '👨‍🎓', roles: ['admin', 'teacher'] },
-  { path: '/groups', label: 'Guruhlar', icon: '👥', roles: ['admin', 'teacher'] },
-  { path: '/tests', label: 'Testlar', icon: '📝', roles: ['admin', 'teacher', 'student'] },
+  { path: '/', label: 'Dashboard', roles: ['admin', 'teacher'] },
+  { path: '/students', label: "O'quvchilar", roles: ['admin', 'teacher'] },
+  { path: '/groups', label: 'Guruhlar', roles: ['admin', 'teacher'] },
+  { path: '/teachers', label: "O'qituvchilar", roles: ['admin'] },
+  { path: '/attendance', label: "Yo'qlama", roles: ['admin', 'teacher'] },
+  { path: '/tests', label: 'Testlar', roles: ['admin', 'teacher', 'student'] },
+  { path: '/results', label: 'Natijalar', roles: ['admin', 'teacher', 'student'] },
+  { path: '/timetable', label: 'Dars Jadvali', roles: ['admin', 'teacher', 'student'] },
+  { path: '/rooms', label: "O'quv xona", roles: ['admin', 'teacher'] },
+  { path: '/materials', label: "O'quv materiallari", roles: ['admin', 'teacher', 'student'] },
 ]
 
 export default function Layout({ children }) {
@@ -43,7 +49,6 @@ export default function Layout({ children }) {
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <span>{item.icon}</span>
               {item.label}
             </Link>
           ))}

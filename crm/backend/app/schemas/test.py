@@ -103,6 +103,7 @@ class TestResultOut(BaseModel):
     test_id: int
     test_title: str = ""
     student_id: int
+    student_name: str = ""
     correct_count: int
     total_questions: int
     percentage: float

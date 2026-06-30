@@ -14,6 +14,10 @@ class StudentProfile(Base):
     parent_telegram_id = Column(String(50), nullable=True)
     student_telegram_id = Column(String(50), nullable=True)
     address = Column(String(300), nullable=True)
+    middle_name = Column(String(50), nullable=True)
+    gender = Column(String(6), nullable=True)  # male | female
+    doc_type = Column(String(20), nullable=True)    # passport | birth_cert
+    doc_series = Column(String(30), nullable=True)
     avatar_url = Column(String(255), nullable=True)
     enrolled_date = Column(Date, server_default=func.current_date())
     course_start_date = Column(Date, nullable=True)

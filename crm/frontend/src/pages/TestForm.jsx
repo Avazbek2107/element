@@ -56,14 +56,24 @@ function LatexInput({ label, value, onChange }) {
 
 const emptyQuestion = () => ({ question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A', points: 1 })
 
-export default function TestForm({ onBack }) {
+export default function TestForm({ onBack, editTest, editQuestions }) {
+  const isEdit = !!editTest
   const [groups, setGroups] = useState([])
   const [saving, setSaving] = useState(false)
-  const [meta, setMeta] = useState({
+  const [meta, setMeta] = useState(isEdit ? {
+    title: editTest.title,
+    description: editTest.description || '',
+    group_id: editTest.group_id ? String(editTest.group_id) : '',
+    test_type: editTest.test_type,
+    duration_minutes: editTest.duration_minutes,
+    passing_score: editTest.passing_score,
+  } : {
     title: '', description: '', group_id: '', test_type: 'practice',
     duration_minutes: 30, passing_score: 50,
   })
-  const [questions, setQuestions] = useState([emptyQuestion()])
+  const [questions, setQuestions] = useState(
+    isEdit && editQuestions?.length ? editQuestions.map((q) => ({ ...q })) : [emptyQuestion()]
+  )
 
   useEffect(() => {
     groupsApi.list().then(({ data }) => setGroups(data)).catch(() => {})
@@ -87,8 +97,13 @@ export default function TestForm({ onBack }) {
       const data = { ...meta, questions }
       if (data.group_id) data.group_id = parseInt(data.group_id)
       else delete data.group_id
-      await testsApi.create(data)
-      toast.success('Test yaratildi')
+      if (isEdit) {
+        await testsApi.updateFull(editTest.id, data)
+        toast.success('Test yangilandi')
+      } else {
+        await testsApi.create(data)
+        toast.success('Test yaratildi')
+      }
       onBack()
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Xatolik')
@@ -101,7 +116,9 @@ export default function TestForm({ onBack }) {
     <div>
       <div className="flex items-center gap-3 mb-6">
         <button onClick={onBack} className="text-gray-500 hover:text-gray-700">← Orqaga</button>
-        <h1 className="text-2xl font-bold text-gray-800">Yangi test yaratish</h1>
+        <h1 className="text-2xl font-bold text-gray-800">
+          {isEdit ? 'Testni tahrirlash' : 'Yangi test yaratish'}
+        </h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
@@ -189,7 +206,7 @@ export default function TestForm({ onBack }) {
         <div className="flex gap-3">
           <button type="button" onClick={onBack} className="flex-1 border border-gray-300 py-2.5 rounded-lg text-sm">Bekor</button>
           <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50">
-            {saving ? 'Saqlanmoqda...' : 'Test yaratish'}
+            {saving ? 'Saqlanmoqda...' : isEdit ? 'Saqlash' : 'Test yaratish'}
           </button>
         </div>
       </form>

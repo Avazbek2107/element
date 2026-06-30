@@ -41,6 +41,7 @@ export const studentsApi = {
   create: (data) => api.post('/students', data),
   update: (id, data) => api.put(`/students/${id}`, data),
   delete: (id) => api.delete(`/students/${id}`),
+  importFile: (formData) => api.post('/students/import', formData),
 }
 
 export const groupsApi = {
@@ -58,13 +59,56 @@ export const testsApi = {
   get: (id) => api.get(`/tests/${id}`),
   create: (data) => api.post('/tests', data),
   update: (id, data) => api.put(`/tests/${id}`, data),
+  updateFull: (id, data) => api.put(`/tests/${id}/full`, data),
   delete: (id) => api.delete(`/tests/${id}`),
   publish: (id) => api.post(`/tests/${id}/publish`),
+  parseFile: (formData) => api.post('/tests/parse-file', formData),
   getQuestions: (id) => api.get(`/tests/${id}/questions`),
+  getQuestionsForEdit: (id) => api.get(`/tests/${id}/questions-edit`),
   addQuestion: (id, data) => api.post(`/tests/${id}/questions`, data),
   start: (id) => api.post(`/tests/${id}/start`),
   submit: (id, data) => api.post(`/tests/${id}/submit`, data),
   getResults: (id) => api.get(`/tests/${id}/results`),
+}
+
+export const usersApi = {
+  importTeachers: (formData) => api.post('/users/import-teachers', formData),
+  listTeachers: () => api.get('/users/teachers'),
+}
+
+export const materialsApi = {
+  listModules:  ()            => api.get('/materials/modules'),
+  createModule: (data)        => api.post('/materials/modules', data),
+  updateModule: (id, data)    => api.put(`/materials/modules/${id}`, data),
+  deleteModule: (id)          => api.delete(`/materials/modules/${id}`),
+  listTopics:   (moduleId)    => api.get(`/materials/modules/${moduleId}/topics`),
+  createTopic:  (moduleId, d) => api.post(`/materials/modules/${moduleId}/topics`, d),
+  updateTopic:  (id, data)    => api.put(`/materials/topics/${id}`, data),
+  deleteTopic:  (id)          => api.delete(`/materials/topics/${id}`),
+}
+
+export const roomsApi = {
+  list:   ()         => api.get('/rooms'),
+  create: (data)     => api.post('/rooms', data),
+  update: (id, data) => api.put(`/rooms/${id}`, data),
+  delete: (id)       => api.delete(`/rooms/${id}`),
+}
+
+export const statsApi = {
+  get: (group_id) => api.get('/stats', { params: group_id ? { group_id } : {} }),
+}
+
+export const resultsApi = {
+  my: () => api.get('/results/my'),
+  all: (params) => api.get('/results', { params }),
+}
+
+export const attendanceApi = {
+  list:    (params)   => api.get('/attendance', { params }),
+  mark:    (data)     => api.post('/attendance', data),
+  summary: (group_id) => api.get('/attendance/summary', { params: { group_id } }),
+  today:   (group_id) => api.get('/attendance/today', { params: group_id ? { group_id } : {} }),
+  day:     (group_id, date) => api.get('/attendance', { params: { group_id, date_from: date, date_to: date } }),
 }
 
 export default api

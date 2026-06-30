@@ -7,6 +7,12 @@ import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
 import Groups from './pages/Groups'
 import Tests from './pages/Tests'
+import Attendance from './pages/Attendance'
+import Teachers from './pages/Teachers'
+import Results from './pages/Results'
+import Timetable from './pages/Timetable'
+import Rooms from './pages/Rooms'
+import Materials from './pages/Materials'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -26,6 +32,12 @@ export default function App() {
           <Route path="/students" element={<PrivateRoute><Students /></PrivateRoute>} />
           <Route path="/groups" element={<PrivateRoute><Groups /></PrivateRoute>} />
           <Route path="/tests" element={<PrivateRoute><Tests /></PrivateRoute>} />
+          <Route path="/attendance" element={<PrivateRoute><Attendance /></PrivateRoute>} />
+          <Route path="/teachers" element={<PrivateRoute><Teachers /></PrivateRoute>} />
+          <Route path="/results" element={<PrivateRoute><Results /></PrivateRoute>} />
+          <Route path="/timetable" element={<PrivateRoute><Timetable /></PrivateRoute>} />
+          <Route path="/rooms" element={<PrivateRoute><Rooms /></PrivateRoute>} />
+          <Route path="/materials" element={<PrivateRoute><Materials /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

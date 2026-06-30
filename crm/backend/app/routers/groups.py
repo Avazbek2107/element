@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.group import Group
+from app.models.room import Room
 from app.models.student import StudentProfile
 from app.schemas.group import GroupCreate, GroupUpdate, GroupOut
 from app.utils.auth import get_current_user, require_roles
@@ -11,6 +12,108 @@ from app.utils.auth import get_current_user, require_roles
 router = APIRouter(prefix="/api/groups", tags=["groups"])
 
 AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher)
+
+DAY_UZ = {
+    "monday": "Dushanba", "tuesday": "Seshanba", "wednesday": "Chorshanba",
+    "thursday": "Payshanba", "friday": "Juma", "saturday": "Shanba", "sunday": "Yakshanba",
+}
+
+def _time_str(entry) -> str:
+    """Schedule entry → vaqt qatori. 'HH:MM-HH:MM' yoki {'time':..., 'room_id':...}"""
+    if isinstance(entry, str):
+        return entry
+    if isinstance(entry, dict):
+        return entry.get("time", "")
+    return ""
+
+def _room_id(entry) -> Optional[int]:
+    if isinstance(entry, dict):
+        return entry.get("room_id")
+    return None
+
+def _parse_range(s: str):
+    """'09:00-11:00' → (9.0, 11.0)"""
+    try:
+        start, end = s.split("-")
+        def f(t):
+            h, m = t.strip().split(":")
+            return int(h) + int(m) / 60
+        return f(start), f(end)
+    except Exception:
+        return None, None
+
+def _overlaps(ns, ne, os_, oe) -> bool:
+    return ns < oe and os_ < ne
+
+def _check_teacher_conflict(
+    db: Session,
+    teacher_id: int,
+    schedule: dict,
+    exclude_group_id: Optional[int] = None,
+):
+    if not teacher_id or not schedule:
+        return
+    query = db.query(Group).filter(Group.teacher_id == teacher_id, Group.is_active == True)
+    if exclude_group_id:
+        query = query.filter(Group.id != exclude_group_id)
+    for other in query.all():
+        if not other.schedule:
+            continue
+        for day, entry in schedule.items():
+            if day not in other.schedule:
+                continue
+            ns, ne = _parse_range(_time_str(entry))
+            os_, oe = _parse_range(_time_str(other.schedule[day]))
+            if None in (ns, ne, os_, oe):
+                continue
+            if _overlaps(ns, ne, os_, oe):
+                day_name = DAY_UZ.get(day, day)
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"O'qituvchi {day_name} kuni {_time_str(other.schedule[day])} vaqtida "
+                        f"«{other.name}» guruhida dars beradi. "
+                        f"Bir vaqtda bir nechta guruhga dars berib bo'lmaydi."
+                    ),
+                )
+
+def _check_room_conflict(
+    db: Session,
+    schedule: dict,
+    exclude_group_id: Optional[int] = None,
+):
+    if not schedule:
+        return
+    for day, entry in schedule.items():
+        rid = _room_id(entry)
+        if not rid:
+            continue
+        ns, ne = _parse_range(_time_str(entry))
+        if None in (ns, ne):
+            continue
+        query = db.query(Group).filter(Group.is_active == True)
+        if exclude_group_id:
+            query = query.filter(Group.id != exclude_group_id)
+        for other in query.all():
+            if not other.schedule or day not in other.schedule:
+                continue
+            if _room_id(other.schedule[day]) != rid:
+                continue
+            os_, oe = _parse_range(_time_str(other.schedule[day]))
+            if None in (os_, oe):
+                continue
+            if _overlaps(ns, ne, os_, oe):
+                day_name = DAY_UZ.get(day, day)
+                room = db.query(Room).filter(Room.id == rid).first()
+                room_name = room.name if room else f"#{rid}"
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{day_name} kuni {_time_str(other.schedule[day])} vaqtida "
+                        f"«{room_name}» xonasida «{other.name}» guruhining darsi bor. "
+                        f"Bir vaqtda bitta xonaga ikki dars belgilanmaydi."
+                    ),
+                )
 
 
 def _build_group_out(group: Group, db: Session) -> GroupOut:
@@ -50,6 +153,8 @@ def create_group(
     db: Session = Depends(get_db),
     current_user: User = Depends(AdminOrTeacher),
 ):
+    _check_teacher_conflict(db, body.teacher_id, body.schedule)
+    _check_room_conflict(db, body.schedule)
     group = Group(**body.model_dump())
     db.add(group)
     db.commit()
@@ -79,6 +184,13 @@ def update_group(
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
+
+    # Yangilanayotgan teacher_id va schedule ni aniqlash
+    effective_teacher  = body.teacher_id  if body.teacher_id  is not None else group.teacher_id
+    effective_schedule = body.schedule    if body.schedule    is not None else group.schedule
+    _check_teacher_conflict(db, effective_teacher, effective_schedule, exclude_group_id=group_id)
+    _check_room_conflict(db, effective_schedule, exclude_group_id=group_id)
+
     for key, value in body.model_dump(exclude_none=True).items():
         setattr(group, key, value)
     db.commit()

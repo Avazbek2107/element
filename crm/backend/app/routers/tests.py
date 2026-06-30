@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timedelta
+import io
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.test import Test, TestQuestion, TestResult, TestStatus
@@ -12,6 +13,7 @@ from app.schemas.test import (
     TestSubmit, TestResultOut,
 )
 from app.utils.auth import get_current_user, require_roles
+from app.utils.parser import parse_docx, parse_pdf
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
@@ -319,3 +321,84 @@ def get_results(
         TestResult.status == TestStatus.submitted,
     ).all()
     return [_build_result_out(r) for r in results]
+
+
+@router.get("/{test_id}/questions-edit", response_model=List[QuestionWithAnswer])
+def get_questions_for_edit(
+    test_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AdminOrTeacher),
+):
+    test = db.query(Test).filter(Test.id == test_id).first()
+    if not test:
+        raise HTTPException(status_code=404, detail="Test topilmadi")
+    return db.query(TestQuestion).filter(
+        TestQuestion.test_id == test_id
+    ).order_by(TestQuestion.question_order).all()
+
+
+@router.put("/{test_id}/full", response_model=TestOut)
+def update_test_full(
+    test_id: int,
+    body: TestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AdminOrTeacher),
+):
+    test = db.query(Test).filter(Test.id == test_id).first()
+    if not test:
+        raise HTTPException(status_code=404, detail="Test topilmadi")
+
+    test.title          = body.title
+    test.description    = body.description
+    test.group_id       = body.group_id
+    test.test_type      = body.test_type
+    test.duration_minutes = body.duration_minutes
+    test.passing_score  = body.passing_score
+    test.start_date     = body.start_date
+    test.end_date       = body.end_date
+    test.total_questions = len(body.questions)
+
+    db.query(TestQuestion).filter(TestQuestion.test_id == test_id).delete()
+    for i, q in enumerate(body.questions):
+        db.add(TestQuestion(
+            test_id=test.id,
+            question_text=q.question_text,
+            option_a=q.option_a, option_b=q.option_b,
+            option_c=q.option_c, option_d=q.option_d,
+            correct_answer=q.correct_answer,
+            points=q.points,
+            question_order=q.question_order or i + 1,
+        ))
+
+    db.commit()
+    db.refresh(test)
+    return test
+
+
+@router.post("/parse-file")
+async def parse_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(AdminOrTeacher),
+):
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower()
+    if ext not in ("docx", "pdf"):
+        raise HTTPException(status_code=400, detail="Faqat .docx yoki .pdf fayl yuklang")
+
+    content = await file.read()
+    buf = io.BytesIO(content)
+
+    try:
+        if ext == "docx":
+            questions = parse_docx(buf)
+        else:
+            questions = parse_pdf(buf)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Faylni o'qishda xato: {e}")
+
+    if not questions:
+        raise HTTPException(
+            status_code=422,
+            detail="Savollar topilmadi. Fayl formatini tekshiring."
+        )
+
+    return {"questions": questions, "total": len(questions)}
