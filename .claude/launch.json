@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crm-frontend",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": ["C:\\Users\\iavaz\\Desktop\\element\\crm\\frontend\\node_modules\\vite\\bin\\vite.js", "--port", "3000"],
+      "cwd": "C:\\Users\\iavaz\\Desktop\\element\\crm\\frontend",
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}

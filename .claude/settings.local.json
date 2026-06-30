@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"C:/Users/iavaz/Desktop/element/crm/frontend/.claude\")",
+      "Bash(npm install *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npm *)",
+      "PowerShell(\\(Get-Command npm\\).Source)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\nodejs\", \"C:\\\\Program Files \\(x86\\)\\\\nodejs\", \"$env:APPDATA\\\\npm\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "PowerShell(\\(Get-Command node\\).Source; node --version; \\(Get-Command npm\\).Source; npm --version)",
+      "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" install 2>&1)",
+      "PowerShell(Stop-Process -Id 2568 -Force)",
+      "PowerShell(Test-NetConnection -ComputerName localhost -Port 3000)",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;\" + $env:PATH; Set-Location \"C:\\\\Users\\\\iavaz\\\\Desktop\\\\element\\\\crm\\\\frontend\"; & \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" run dev 2>&1 | Select-Object -First 20)",
+      "PowerShell(Test-NetConnection -ComputerName localhost -Port 3000 -WarningAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 13560 -Force -ErrorAction SilentlyContinue)",
+      "Read(//c/Users/iavaz/Desktop/**)",
+      "Read(//c/Users/iavaz/Downloads/**)"
+    ]
+  }
+}

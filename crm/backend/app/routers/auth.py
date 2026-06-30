@@ -1,0 +1,66 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.user import User, UserRole
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, RefreshRequest, UserOut
+from app.utils.auth import (
+    hash_password, verify_password,
+    create_access_token, create_refresh_token,
+    decode_token, get_current_user,
+)
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+@router.post("/login", response_model=TokenResponse)
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(
+        (User.username == body.username) | (User.email == body.username),
+        User.is_active == True,
+    ).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Login yoki parol noto'g'ri")
+    token_data = {"sub": str(user.id), "role": user.role}
+    return TokenResponse(
+        access_token=create_access_token(token_data),
+        refresh_token=create_refresh_token(token_data),
+    )
+
+
+@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(status_code=400, detail="Bu email allaqachon ro'yxatdan o'tgan")
+    if db.query(User).filter(User.username == body.username).first():
+        raise HTTPException(status_code=400, detail="Bu username band")
+
+    user = User(
+        username=body.username,
+        email=body.email,
+        password_hash=hash_password(body.password),
+        first_name=body.first_name,
+        last_name=body.last_name,
+        role=body.role,
+        phone=body.phone,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.post("/refresh-token", response_model=TokenResponse)
+def refresh_token(body: RefreshRequest):
+    payload = decode_token(body.refresh_token)
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=400, detail="Refresh token emas")
+    token_data = {"sub": payload["sub"], "role": payload["role"]}
+    return TokenResponse(
+        access_token=create_access_token(token_data),
+        refresh_token=create_refresh_token(token_data),
+    )
+
+
+@router.get("/me", response_model=UserOut)
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
