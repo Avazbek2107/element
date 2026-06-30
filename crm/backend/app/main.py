@@ -20,9 +20,14 @@ except Exception:
 
 app = FastAPI(title="O'quv Markazi CRM", version="1.0.0")
 
+import os as _os
+
+_CORS_ORIGINS = _os.getenv("ALLOWED_ORIGINS", "").split(",") if _os.getenv("ALLOWED_ORIGINS") else []
+_DEFAULT_ORIGINS = ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"],
+    allow_origins=["*"] if not _CORS_ORIGINS else _DEFAULT_ORIGINS + _CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
