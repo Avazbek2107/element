@@ -5,7 +5,8 @@ databases:
     plan: free
 
 services:
-  # ── Backend (FastAPI) ──
+
+  # ── Backend (FastAPI) ──────────────────────────────────────────────
   - type: web
     name: element-backend
     runtime: python
@@ -26,10 +27,18 @@ services:
         value: 60
       - key: REFRESH_TOKEN_EXPIRE_DAYS
         value: 7
+      - key: TZ
+        value: Asia/Tashkent
       - key: ALLOWED_ORIGINS
         value: https://element-frontend.onrender.com
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
 
-  # ── Frontend (React/Vite) ──
+  # ── Frontend (React/Vite → static) ────────────────────────────────
   - type: web
     name: element-frontend
     runtime: static
@@ -44,3 +53,17 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  # ── Telegram Bot (background worker) ──────────────────────────────
+  - type: worker
+    name: element-bot
+    runtime: python
+    rootDir: crm/bot
+    plan: free
+    buildCommand: pip install aiogram httpx
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: BACKEND_URL
+        value: https://element-backend.onrender.com
