@@ -6,12 +6,12 @@ databases:
 
 services:
 
-  # ── Backend (FastAPI) ──────────────────────────────────────────────
+  # ── Backend (FastAPI) — $7/oy ──────────────────────────────────────
   - type: web
     name: element-backend
     runtime: python
     rootDir: crm/backend
-    plan: free
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: sh entrypoint.sh
     envVars:
@@ -38,7 +38,7 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
-  # ── Frontend (React/Vite → static) ────────────────────────────────
+  # ── Frontend (React → static, BEPUL) ──────────────────────────────
   - type: web
     name: element-frontend
     runtime: static
@@ -53,17 +53,3 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
-
-  # ── Telegram Bot (background worker) ──────────────────────────────
-  - type: worker
-    name: element-bot
-    runtime: python
-    rootDir: crm/bot
-    plan: free
-    buildCommand: pip install aiogram httpx
-    startCommand: python bot.py
-    envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: BACKEND_URL
-        value: https://element-backend.onrender.com
