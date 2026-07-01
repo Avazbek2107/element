@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { resultsApi, testsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { ClipboardList, Trophy, CheckCircle2 } from 'lucide-react'
 
 const GRADE_STYLE = {
   "A'lo":      { bg: 'bg-green-100',  text: 'text-green-700',  bar: 'bg-green-500' },
@@ -57,7 +58,9 @@ function StudentResults() {
 
       {results.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-400">
-          <p className="text-4xl mb-3">📝</p>
+          <div className="flex justify-center mb-3">
+            <ClipboardList className="w-14 h-14 text-gray-200" />
+          </div>
           <p>Siz hali hech qanday test topshirmagansiz</p>
         </div>
       ) : (

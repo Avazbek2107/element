@@ -33,8 +33,18 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const hasPermission = (module) => {
+    if (!user) return false
+    if (user.role === 'super_admin') return true
+    if (user.role === 'admin') {
+      if (!user.permissions || user.permissions.length === 0) return true
+      return user.permissions.includes(module)
+    }
+    return true
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   )

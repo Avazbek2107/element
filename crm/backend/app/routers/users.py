@@ -11,7 +11,7 @@ from app.utils.auth import require_roles, hash_password
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
-AdminOnly = require_roles(UserRole.admin)
+AdminOnly = require_roles(UserRole.admin, module="teachers")
 
 
 class TeacherCreate(BaseModel):
@@ -209,7 +209,7 @@ def delete_teacher(
 @router.get("/teachers", response_model=List[dict])
 def list_teachers(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher)),
+    current_user: User = Depends(require_roles(UserRole.super_admin, UserRole.admin, UserRole.teacher)),
 ):
     teachers = db.query(User).filter(
         User.role == UserRole.teacher,

@@ -1,5 +1,5 @@
 import os
-import random
+import secrets
 import string
 
 from fastapi import APIRouter, Depends, HTTPException, Header
@@ -34,7 +34,7 @@ def _grade(pct: float) -> str:
 def _generate_code(db: Session) -> str:
     alphabet = string.ascii_uppercase + string.digits
     while True:
-        code = "".join(random.choices(alphabet, k=8))
+        code = "".join(secrets.choice(alphabet) for _ in range(8))
         used_parent  = db.query(StudentProfile).filter(StudentProfile.link_code == code).first()
         used_student = db.query(StudentProfile).filter(StudentProfile.student_link_code == code).first()
         if not used_parent and not used_student:
@@ -101,6 +101,7 @@ def get_student_link_code(
 class LinkByCodeReq(BaseModel):
     code: str
     chat_id: str
+    role: Optional[str] = None   # "parent" | "student" | None
 
 
 @router.post("/link-by-code")
@@ -111,20 +112,36 @@ def link_by_code(
 ):
     _check_bot_secret(x_bot_secret)
     code = body.code.strip().upper()
+    role = body.role  # "parent", "student", yoki None
 
-    # Avval ota-ona kodini qidirish
-    profile = db.query(StudentProfile).filter(StudentProfile.link_code == code).first()
-    if profile:
-        profile.parent_telegram_id = str(body.chat_id)
-        db.commit()
-        return {"type": "parent", "student_name": f"{profile.user.first_name} {profile.user.last_name}"}
+    parent_profile  = db.query(StudentProfile).filter(StudentProfile.link_code         == code).first()
+    student_profile = db.query(StudentProfile).filter(StudentProfile.student_link_code == code).first()
 
-    # Keyin o'quvchi kodini qidirish
-    profile = db.query(StudentProfile).filter(StudentProfile.student_link_code == code).first()
-    if profile:
-        profile.student_telegram_id = str(body.chat_id)
+    if parent_profile:
+        if role == "student":
+            raise HTTPException(
+                status_code=400,
+                detail="Bu kod ota-ona kodi. O'quvchi kodini administratordan so'rang."
+            )
+        parent_profile.parent_telegram_id = str(body.chat_id)
         db.commit()
-        return {"type": "student", "student_name": f"{profile.user.first_name} {profile.user.last_name}"}
+        return {
+            "type": "parent",
+            "student_name": f"{parent_profile.user.first_name} {parent_profile.user.last_name}",
+        }
+
+    if student_profile:
+        if role == "parent":
+            raise HTTPException(
+                status_code=400,
+                detail="Bu kod o'quvchi kodi. Ota-ona kodini administratordan so'rang."
+            )
+        student_profile.student_telegram_id = str(body.chat_id)
+        db.commit()
+        return {
+            "type": "student",
+            "student_name": f"{student_profile.user.first_name} {student_profile.user.last_name}",
+        }
 
     raise HTTPException(status_code=404, detail="Kod topilmadi")
 

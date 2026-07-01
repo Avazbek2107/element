@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { usersApi } from '../services/api'
 import toast from 'react-hot-toast'
+import { GraduationCap, Pencil, Trash2, Upload, Download } from 'lucide-react'
 
 /* ── Modal: qo'shish / tahrirlash ── */
 function TeacherModal({ teacher, onClose, onSaved }) {
@@ -258,7 +259,7 @@ export default function Teachers() {
           <p className="text-gray-400 text-sm p-6">Yuklanmoqda...</p>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-            <p className="text-4xl mb-3">👨‍🏫</p>
+            <GraduationCap className="w-14 h-14 text-gray-200 mb-3" />
             <p className="text-sm">O'qituvchilar topilmadi</p>
             <button onClick={() => setModal('create')} className="mt-3 text-blue-600 text-sm hover:underline font-medium">
               + Birinchi o'qituvchini qo'shing
@@ -292,17 +293,19 @@ export default function Teachers() {
                   <td className="px-5 py-3 text-gray-500">{t.email}</td>
                   <td className="px-5 py-3 text-gray-500">{t.phone || '—'}</td>
                   <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => setModal(t)}
-                        className="text-blue-600 text-xs hover:underline font-medium"
+                        className="flex items-center gap-1 text-blue-600 text-xs hover:bg-blue-50 px-2 py-1 rounded-lg font-medium"
                       >
+                        <Pencil className="w-3.5 h-3.5" />
                         Tahrirlash
                       </button>
                       <button
                         onClick={() => handleDelete(t)}
-                        className="text-red-500 text-xs hover:underline"
+                        className="flex items-center gap-1 text-red-500 text-xs hover:bg-red-50 px-2 py-1 rounded-lg"
                       >
+                        <Trash2 className="w-3.5 h-3.5" />
                         O'chirish
                       </button>
                     </div>

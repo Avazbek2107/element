@@ -9,6 +9,8 @@ class StudentCreate(BaseModel):
     password: str
     first_name: str
     last_name: str
+    middle_name: Optional[str] = None
+    gender: Optional[str] = None
     phone: Optional[str] = None
     group_id: Optional[int] = None
     birth_date: Optional[date] = None

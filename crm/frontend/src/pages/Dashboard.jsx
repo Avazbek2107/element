@@ -5,67 +5,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-
-/* ── SVG ikonlar ── */
-const IcUsers = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-    <circle cx="9" cy="7" r="4"/>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-  </svg>
-)
-const IcTeacher = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-  </svg>
-)
-const IcBuilding = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-    <rect x="2" y="7" width="20" height="14" rx="1"/>
-    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-  </svg>
-)
-const IcDoc = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <line x1="16" y1="13" x2="8" y2="13"/>
-    <line x1="16" y1="17" x2="8" y2="17"/>
-  </svg>
-)
-const IcChart = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-    <line x1="18" y1="20" x2="18" y2="10"/>
-    <line x1="12" y1="20" x2="12" y2="4"/>
-    <line x1="6" y1="20" x2="6" y2="14"/>
-    <line x1="2" y1="20" x2="22" y2="20"/>
-  </svg>
-)
-const IcClipboard = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-gray-300">
-    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-    <rect x="9" y="3" width="6" height="4" rx="1"/>
-    <line x1="9" y1="12" x2="15" y2="12"/>
-    <line x1="9" y1="16" x2="13" y2="16"/>
-  </svg>
-)
-const IcCalendar = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-gray-300">
-    <rect x="3" y="4" width="18" height="18" rx="2"/>
-    <line x1="16" y1="2" x2="16" y2="6"/>
-    <line x1="8" y1="2" x2="8" y2="6"/>
-    <line x1="3" y1="10" x2="21" y2="10"/>
-  </svg>
-)
-const IcDocEmpty = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-10 h-10 text-gray-300">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <line x1="16" y1="13" x2="8" y2="13"/>
-    <line x1="16" y1="17" x2="8" y2="17"/>
-  </svg>
-)
+import { Users, GraduationCap, Building2, FileText, BarChart2, ClipboardList, Calendar } from 'lucide-react'
 
 /* ── StatCard ── */
 function StatCard({ label, value, sub, color = 'blue', icon }) {
@@ -200,19 +140,21 @@ export default function Dashboard() {
   const [stats, setStats]         = useState(null)
   const [today, setToday]         = useState(null)
   const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(false)
   const [groups, setGroups]       = useState([])
   const [selectedGroup, setSelectedGroup] = useState(null)   // null = hammasi
   const [filterLoading, setFilterLoading] = useState(false)
 
   // Birinchi yuklash: guruhlar ro'yxati + umumiy statistika
   useEffect(() => {
+    setError(false)
     Promise.all([statsApi.get(), attendanceApi.today()])
       .then(([{ data: s }, { data: t }]) => {
         setStats(s)
         setToday(t)
         setGroups(s.recent_groups ?? [])
       })
-      .catch(() => {})
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
 
@@ -230,7 +172,17 @@ export default function Dashboard() {
   }, [selectedGroup]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="text-gray-400 text-sm py-10 text-center">Yuklanmoqda...</div>
-  if (!stats)  return <div className="text-red-400 text-sm py-10 text-center">Ma'lumot yuklashda xato</div>
+  if (error || !stats) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <p className="text-red-400 text-sm">Ma'lumot yuklashda xato yuz berdi</p>
+      <button
+        onClick={() => { setLoading(true); setError(false); Promise.all([statsApi.get(), attendanceApi.today()]).then(([{data:s},{data:t}])=>{setStats(s);setToday(t);setGroups(s.recent_groups??[])}).catch(()=>setError(true)).finally(()=>setLoading(false)) }}
+        className="text-sm text-blue-600 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-50"
+      >
+        Qayta urinish
+      </button>
+    </div>
+  )
 
   const todayTotal = today ? today.present + today.absent + today.late : 0
   const presentPct = todayTotal > 0 ? Math.round((today.present / todayTotal) * 100) : 0
@@ -253,35 +205,35 @@ export default function Dashboard() {
       {/* ── 1. Asosiy stat kartalar ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard
-          icon={<IcUsers />}
+          icon={<Users className="w-6 h-6" />}
           label="Jami o'quvchilar"
           value={stats.students_total}
           sub={`${stats.students_with_group} ta guruhda`}
           color="blue"
         />
         <StatCard
-          icon={<IcTeacher />}
+          icon={<GraduationCap className="w-6 h-6" />}
           label="O'qituvchilar"
           value={stats.teachers_total}
           sub="faol o'qituvchi"
           color="purple"
         />
         <StatCard
-          icon={<IcBuilding />}
+          icon={<Building2 className="w-6 h-6" />}
           label="Guruhlar"
           value={stats.groups_total}
           sub={`${stats.students_no_group} ta guruhsiz`}
           color="green"
         />
         <StatCard
-          icon={<IcDoc />}
+          icon={<FileText className="w-6 h-6" />}
           label="Testlar"
           value={stats.tests_published}
           sub={`Jami ${stats.tests_total} ta (${stats.tests_draft} qoralama)`}
           color="orange"
         />
         <StatCard
-          icon={<IcChart />}
+          icon={<BarChart2 className="w-6 h-6" />}
           label="Test natijalari"
           value={stats.results_total}
           sub={stats.results_total > 0 ? `O'rtacha: ${stats.avg_percentage}%` : "Hali natija yo'q"}
@@ -325,7 +277,7 @@ export default function Dashboard() {
         <ChartCard title={selectedGroup ? `Bugungi yo'qlama — ${groups.find(g => g.id === selectedGroup)?.name ?? ''}` : "Bugungi yo'qlama"}>
           {todayTotal === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-              <IcClipboard />
+              <ClipboardList className="w-10 h-10 text-gray-300" />
               <p className="text-sm mt-3">Bugun yo'qlama belgilanmagan</p>
               <Link to="/attendance" className="mt-3 text-xs text-blue-500 hover:underline">
                 Yo'qlama belgilash →
@@ -421,7 +373,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           ) : (
             <div className="flex flex-col items-center justify-center h-48 text-gray-300">
-              <IcCalendar />
+              <Calendar className="w-10 h-10 text-gray-300" />
               <p className="text-sm mt-3">So'nggi 7 kunda yo'qlama yo'q</p>
             </div>
           )}
@@ -442,7 +394,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           ) : (
             <div className="flex flex-col items-center justify-center h-48 text-gray-300">
-              <IcDocEmpty />
+              <FileText className="w-10 h-10 text-gray-300" />
               <p className="text-sm mt-3">Hali testlar kiritilmagan</p>
             </div>
           )}

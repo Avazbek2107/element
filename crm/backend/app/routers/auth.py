@@ -40,7 +40,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         password_hash=hash_password(body.password),
         first_name=body.first_name,
         last_name=body.last_name,
-        role=body.role,
+        role=UserRole.student,
         phone=body.phone,
     )
     db.add(user)

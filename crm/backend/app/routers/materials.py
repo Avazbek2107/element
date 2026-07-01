@@ -12,7 +12,7 @@ from app.utils.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
-AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher)
+AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="materials")
 
 
 # ── Modullar ──

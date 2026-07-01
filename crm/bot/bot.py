@@ -7,7 +7,10 @@ from pathlib import Path
 import httpx
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import (
+    Message, CallbackQuery,
+    InlineKeyboardMarkup, InlineKeyboardButton,
+)
 
 # .env fayldan yuklash
 _env_file = Path(__file__).parent.parent / "backend" / ".env"
@@ -23,69 +26,136 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").strip()
 
 CODE_RE = re.compile(r"^[A-Z0-9]{8}$")
 
-WELCOME_TEXT = (
-    "Salom! Bu element o'quv markazi boti.\n\n"
-    "📌 Ota-ona yoki o'quvchi bo'lsangiz, administrator bergan bog'lash kodini shu yerga yuboring.\n\n"
-    "📝 O'quvchilar qog'oz testni ishlab bo'lgach:\n"
-    "/javob [test_id] [javoblar]\n"
-    "Masalan: /javob 5 ABDCA"
-)
-
 bot = Bot(token=TOKEN)
-dp = Dispatcher()
+dp  = Dispatcher()
 HEADERS = {"X-Bot-Secret": TOKEN}
 
+# chat_id → "student" | "parent"  (vaqtinchalik xotira)
+pending_role: dict[int, str] = {}
 
-async def try_link(message: Message, code: str):
-    code = code.strip().upper()
-    if not CODE_RE.match(code):
-        await message.answer("Kod noto'g'ri formatda. Kod 8 ta harf/raqamdan iborat bo'lishi kerak.")
-        return
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"{BACKEND_URL}/api/telegram/link-by-code",
-                json={"code": code, "chat_id": str(message.chat.id)},
-                headers=HEADERS,
-            )
-        if resp.status_code == 200:
-            data = resp.json()
-            name = data.get("student_name", "")
-            if data.get("type") == "parent":
-                await message.answer(
-                    f"✅ Muvaffaqiyatli bog'landingiz! (Ota-ona)\n\n"
-                    f"O'quvchi: {name}\n\n"
-                    f"Endi farzandingizning darsga kelishi va test natijalari haqida shu yerga xabar olib turasiz."
-                )
-            else:
-                await message.answer(
-                    f"✅ Muvaffaqiyatli bog'landingiz! (O'quvchi)\n\n"
-                    f"Ism: {name}\n\n"
-                    f"Test qo'shilganda sizga xabar keladi va javoblarni topshirishingiz mumkin bo'ladi.\n\n"
-                    f"Yoki qo'lda topshirish uchun:\n"
-                    f"/javob [test_id] [javoblar]"
-                )
-        elif resp.status_code == 404:
-            await message.answer("❌ Bunday kod topilmadi. Kodni administratordan qaytadan so'rang.")
-        else:
-            await message.answer("Xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.")
-    except Exception:
-        await message.answer("Serverga ulanib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.")
+ROLE_KEYBOARD = InlineKeyboardMarkup(inline_keyboard=[[
+    InlineKeyboardButton(text="👨‍🎓  O'quvchi",  callback_data="role_student"),
+    InlineKeyboardButton(text="👪  Ota-ona",    callback_data="role_parent"),
+]])
+
+WELCOME_TEXT = (
+    "Salom! Bu <b>Element o'quv markazi</b> boti.\n\n"
+    "Siz kim sifatida platformaga birikmoqchisiz?"
+)
+
+
+# ── Rol tanlash ──────────────────────────────────────────────────────────────
+
+async def _show_role_selection(target):
+    """Message yoki CallbackQuery uchun rol tanlash xabarini yuboradi."""
+    if isinstance(target, Message):
+        await target.answer(WELCOME_TEXT, reply_markup=ROLE_KEYBOARD, parse_mode="HTML")
+    else:
+        await target.message.edit_text(
+            WELCOME_TEXT, reply_markup=ROLE_KEYBOARD, parse_mode="HTML"
+        )
 
 
 @dp.message(CommandStart(deep_link=True))
 async def start_with_code(message: Message, command):
     code = (command.args or "").strip()
-    if not code:
-        await message.answer(WELCOME_TEXT)
-        return
-    await try_link(message, code)
+    if code:
+        await _try_link(message, code)
+    else:
+        await _show_role_selection(message)
 
 
 @dp.message(CommandStart())
 async def start_plain(message: Message):
-    await message.answer(WELCOME_TEXT)
+    await _show_role_selection(message)
 
+
+@dp.callback_query(F.data == "role_student")
+async def on_role_student(callback: CallbackQuery):
+    pending_role[callback.message.chat.id] = "student"
+    await callback.message.edit_text(
+        "👨‍🎓 <b>O'quvchi</b> sifatida birikmoqdasiz.\n\n"
+        "Administrator bergan <b>8 belgili o'quvchi kodingizni</b> yuboring:",
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "role_parent")
+async def on_role_parent(callback: CallbackQuery):
+    pending_role[callback.message.chat.id] = "parent"
+    await callback.message.edit_text(
+        "👪 <b>Ota-ona</b> sifatida birikmoqdasiz.\n\n"
+        "Administrator bergan <b>8 belgili ota-ona kodingizni</b> yuboring:",
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+# ── Bog'lash logikasi ────────────────────────────────────────────────────────
+
+async def _try_link(message: Message, code: str, role: str | None = None):
+    code = code.strip().upper()
+    if not CODE_RE.match(code):
+        await message.answer(
+            "❌ Kod noto'g'ri formatda.\n"
+            "Kod 8 ta harf yoki raqamdan iborat bo'lishi kerak."
+        )
+        return
+
+    payload = {"code": code, "chat_id": str(message.chat.id)}
+    if role:
+        payload["role"] = role
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{BACKEND_URL}/api/telegram/link-by-code",
+                json=payload,
+                headers=HEADERS,
+            )
+
+        if resp.status_code == 200:
+            data = resp.json()
+            name = data.get("student_name", "")
+            pending_role.pop(message.chat.id, None)
+
+            if data.get("type") == "parent":
+                await message.answer(
+                    f"✅ <b>Muvaffaqiyatli birikdingiz!</b> (Ota-ona)\n\n"
+                    f"O'quvchi: <b>{name}</b>\n\n"
+                    f"Endi farzandingizning darsga kelishi va test natijalari "
+                    f"haqida shu yerga xabar olib turasiz.",
+                    parse_mode="HTML",
+                )
+            else:
+                await message.answer(
+                    f"✅ <b>Muvaffaqiyatli birikdingiz!</b> (O'quvchi)\n\n"
+                    f"Ism: <b>{name}</b>\n\n"
+                    f"Test qo'shilganda sizga xabar keladi va "
+                    f"javoblarni topshirishingiz mumkin bo'ladi.\n\n"
+                    f"Qo'lda topshirish uchun:\n"
+                    f"/javob [test_id] [javoblar]",
+                    parse_mode="HTML",
+                )
+
+        elif resp.status_code == 400:
+            detail = resp.json().get("detail", "Xatolik")
+            await message.answer(f"❌ {detail}")
+
+        elif resp.status_code == 404:
+            await message.answer(
+                "❌ Bunday kod topilmadi.\n"
+                "Kodni administratordan qaytadan so'rang."
+            )
+        else:
+            await message.answer("Xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.")
+
+    except Exception:
+        await message.answer("Serverga ulanib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.")
+
+
+# ── Test javobini topshirish ─────────────────────────────────────────────────
 
 @dp.callback_query(F.data.startswith("sub_"))
 async def on_submit_button(callback: CallbackQuery):
@@ -94,8 +164,9 @@ async def on_submit_button(callback: CallbackQuery):
         f"📝 <b>Test #{test_id}</b> uchun javoblaringizni yuboring:\n\n"
         f"Format: <code>/javob {test_id} JAVOBLAR</code>\n\n"
         f"Masalan: <code>/javob {test_id} ABDCA</code>\n\n"
-        f"⚠️ Faqat A, B, C, D harflarini kiriting. Faqat <b>bir marta</b> topshirish mumkin!",
-        parse_mode="HTML"
+        f"⚠️ Faqat A, B, C, D harflarini kiriting. "
+        f"Faqat <b>bir marta</b> topshirish mumkin!",
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -115,21 +186,33 @@ async def submit_test(message: Message, command):
         await message.answer("❌ Test raqami noto'g'ri. Masalan: /javob 5 ABDCA")
         return
     if not re.match(r"^[A-Da-d]+$", answers):
-        await message.answer("❌ Javoblar faqat A, B, C, D harflaridan iborat bo'lishi kerak.\nMasalan: /javob 5 ABDCA")
+        await message.answer(
+            "❌ Javoblar faqat A, B, C, D harflaridan iborat bo'lishi kerak.\n"
+            "Masalan: /javob 5 ABDCA"
+        )
         return
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{BACKEND_URL}/api/telegram/submit-test",
-                json={"chat_id": str(message.chat.id), "test_id": int(test_id_str), "answers": answers.upper()},
+                json={
+                    "chat_id": str(message.chat.id),
+                    "test_id": int(test_id_str),
+                    "answers": answers.upper(),
+                },
                 headers=HEADERS,
             )
+
         if resp.status_code == 200:
             d = resp.json()
-            pct = round(float(d['percentage']))
+            pct  = round(float(d["percentage"]))
             bars = "▓" * round(pct / 100 * 16) + "░" * (16 - round(pct / 100 * 16))
-            grade_emoji = "🏆" if pct >= 90 else "🥇" if pct >= 75 else "🥈" if pct >= 50 else "🥉"
+            grade_emoji = (
+                "🏆" if pct >= 90 else
+                "🥇" if pct >= 75 else
+                "🥈" if pct >= 50 else "🥉"
+            )
             await message.answer(
                 f"✅ <b>Test qabul qilindi!</b>\n\n"
                 f"📋 {d['test_title']}\n"
@@ -138,33 +221,44 @@ async def submit_test(message: Message, command):
                 f"<code>{bars}</code>  <b>{pct}%</b>\n\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"{grade_emoji} <b>Baho:</b> {d['grade']}",
-                parse_mode="HTML"
+                parse_mode="HTML",
             )
         elif resp.status_code == 403:
             await message.answer(
                 "❌ Telegram hisobingiz hali bog'lanmagan.\n"
-                "Avval administratordan o'quvchi kodini oling va shu yerga yuboring."
+                "Avval /start buyrug'ini bosing va o'quvchi kodingizni kiriting."
             )
         elif resp.status_code in (404, 400):
             detail = resp.json().get("detail", "")
             await message.answer(f"❌ {detail}")
         else:
             await message.answer("Xatolik yuz berdi. Birozdan so'ng qayta urinib ko'ring.")
+
     except Exception:
         await message.answer("Serverga ulanib bo'lmadi. Birozdan so'ng qayta urinib ko'ring.")
 
+
+# ── Matn xabari — kod yoki yo'riqnoma ────────────────────────────────────────
 
 @dp.message(F.text)
 async def maybe_code(message: Message):
     text = (message.text or "").strip().upper()
     if CODE_RE.match(text):
-        await try_link(message, text)
+        role = pending_role.get(message.chat.id)
+        await _try_link(message, text, role=role)
     else:
-        await message.answer(
-            "Bog'lash kodini yuboring (administratordan olasiz),\n"
-            "yoki test topshirish uchun:\n/javob [test_id] [javoblar]"
-        )
+        # Rol tanlanmagan bo'lsa qayta selection ko'rsat
+        if message.chat.id not in pending_role:
+            await _show_role_selection(message)
+        else:
+            role_label = "o'quvchi" if pending_role[message.chat.id] == "student" else "ota-ona"
+            await message.answer(
+                f"Iltimos, administrator bergan 8 belgili {role_label} kodingizni yuboring.\n\n"
+                f"Qayta boshlash uchun /start bosing."
+            )
 
+
+# ── Main ─────────────────────────────────────────────────────────────────────
 
 async def main():
     logging.basicConfig(level=logging.INFO)

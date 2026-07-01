@@ -15,7 +15,7 @@ from app.utils.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/groups", tags=["groups"])
 
-AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher)
+AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="groups")
 
 DAY_UZ = {
     "monday": "Dushanba", "tuesday": "Seshanba", "wednesday": "Chorshanba",
@@ -120,6 +120,13 @@ def _check_room_conflict(
                 )
 
 
+def _check_group_access(user: User, group_id: int, db: Session):
+    if user.role == UserRole.teacher:
+        owned = db.query(Group.id).filter(Group.id == group_id, Group.teacher_id == user.id).first()
+        if not owned:
+            raise HTTPException(status_code=403, detail="Bu guruhga kirish ruxsati yo'q")
+
+
 def _build_group_out(group: Group, db: Session) -> GroupOut:
     teacher_name = None
     if group.teacher:
@@ -147,7 +154,10 @@ def list_groups(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    groups = db.query(Group).filter(Group.is_active == True).all()
+    q = db.query(Group).filter(Group.is_active == True)
+    if current_user.role == UserRole.teacher:
+        q = q.filter(Group.teacher_id == current_user.id)
+    groups = q.all()
     return [_build_group_out(g, db) for g in groups]
 
 
@@ -175,6 +185,7 @@ def get_group(
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
+    _check_group_access(current_user, group_id, db)
     return _build_group_out(group, db)
 
 
@@ -206,7 +217,7 @@ def update_group(
 def delete_group(
     group_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.admin)),
+    current_user: User = Depends(require_roles(UserRole.admin, module="groups")),
 ):
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
@@ -226,6 +237,7 @@ def get_group_report(
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
+    _check_group_access(current_user, group_id, db)
 
     # Standart sana: oxirgi 30 kun
     if not date_to:
@@ -375,6 +387,7 @@ def assign_student_to_group(
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
+    _check_group_access(current_user, group_id, db)
     profile = db.query(StudentProfile).filter(StudentProfile.id == student_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
@@ -390,6 +403,7 @@ def remove_student_from_group(
     db: Session = Depends(get_db),
     current_user: User = Depends(AdminOrTeacher),
 ):
+    _check_group_access(current_user, group_id, db)
     profile = db.query(StudentProfile).filter(
         StudentProfile.id == student_id,
         StudentProfile.group_id == group_id,

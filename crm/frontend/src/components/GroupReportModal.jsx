@@ -1,84 +1,6 @@
 import { useEffect, useState } from 'react'
 import { groupsApi, aiApi } from '../services/api'
-
-/* ─── SVG ikonlar ─────────────────────────────────────────── */
-const IcUsers = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-  </svg>
-)
-const IcCalendar = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-    <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-  </svg>
-)
-const IcTrendUp = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
-  </svg>
-)
-const IcClipboard = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-    <rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
-  </svg>
-)
-const IcStar = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-  </svg>
-)
-const IcCheckCircle = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-  </svg>
-)
-const IcXCircle = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-  </svg>
-)
-const IcClock = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-  </svg>
-)
-const IcShield = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-  </svg>
-)
-const IcAlertTriangle = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-  </svg>
-)
-const IcSort = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-    <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-    <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-  </svg>
-)
-const IcSparkle = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
-    <path d="M19 3L19.75 5.25L22 6L19.75 6.75L19 9L18.25 6.75L16 6L18.25 5.25L19 3Z"/>
-  </svg>
-)
-const IcClose = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-)
-const IcTeacher = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
-  </svg>
-)
+import { Users, Calendar, BarChart2, ClipboardList, Check, X, Clock, Shield, AlertTriangle, AlignLeft, Sparkles, GraduationCap } from 'lucide-react'
 
 /* ─── Rang yordamchilari ──────────────────────────────────── */
 function scoreColor(pct) {
@@ -215,20 +137,20 @@ export default function GroupReportModal({ group, onClose }) {
         {/* ═══ HEADER ═════════════════════════════════════════════ */}
         <div className="bg-white px-6 py-4 border-b border-slate-100 flex items-center gap-4 shrink-0">
           <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 shrink-0">
-            <IcClipboard />
+            <ClipboardList className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-bold text-slate-900 truncate">{group.name}</h2>
             {group.teacher_name && (
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-slate-400"><IcTeacher /></span>
+                <span className="text-slate-400"><GraduationCap className="w-3.5 h-3.5" /></span>
                 <span className="text-xs text-slate-400">{group.teacher_name}</span>
               </div>
             )}
           </div>
           <button onClick={onClose}
             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors shrink-0">
-            <IcClose />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -255,7 +177,7 @@ export default function GroupReportModal({ group, onClose }) {
               <button onClick={analyzeWithAi} disabled={aiLoading}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-60"
                 style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-                <IcSparkle />
+                <Sparkles className="w-4 h-4" />
                 {aiLoading ? 'Tahlil...' : 'AI tahlil'}
               </button>
             )}
@@ -279,7 +201,7 @@ export default function GroupReportModal({ group, onClose }) {
                 <div className="rounded-2xl border border-indigo-100 overflow-hidden">
                   <div className="bg-gradient-to-r from-indigo-50 to-violet-50 px-5 py-3 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-indigo-500"><IcSparkle /></span>
+                      <span className="text-indigo-500"><Sparkles className="w-4 h-4" /></span>
                       <p className="text-sm font-semibold text-indigo-700">Claude AI tahlili</p>
                     </div>
                     <button onClick={() => setAiVisible(false)}
@@ -305,34 +227,34 @@ export default function GroupReportModal({ group, onClose }) {
               {/* ── Metric kartalar ── */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <MetricCard
-                  icon={<IcUsers />}
+                  icon={<Users className="w-5 h-5" />}
                   label="O'quvchilar"
                   value={s.student_count}
                   iconBg="bg-indigo-50" iconColor="text-indigo-500"
                 />
                 <MetricCard
-                  icon={<IcCalendar />}
+                  icon={<Calendar className="w-5 h-5" />}
                   label="O'tilgan darslar"
                   value={s.total_lessons}
                   sub={s.total_lessons === 0 ? "Davr bo'sh" : `${dateFrom} – ${dateTo}`}
                   iconBg="bg-violet-50" iconColor="text-violet-500"
                 />
                 <MetricCard
-                  icon={<IcTrendUp />}
+                  icon={<BarChart2 className="w-5 h-5" />}
                   label="Davomat"
                   value={s.attend_rate !== undefined ? `${s.attend_rate}%` : '—'}
                   sub={`${s.total_present ?? 0} keldi · ${s.total_absent ?? 0} kelmadi`}
                   iconBg="bg-emerald-50" iconColor="text-emerald-500"
                 />
                 <MetricCard
-                  icon={<IcClipboard />}
+                  icon={<ClipboardList className="w-5 h-5" />}
                   label="Testlar"
                   value={s.total_tests}
                   sub={`${s.test_submissions ?? 0} ta topshirildi`}
                   iconBg="bg-amber-50" iconColor="text-amber-500"
                 />
                 <MetricCard
-                  icon={<IcStar />}
+                  icon={<BarChart2 className="w-5 h-5" />}
                   label="Test o'rtacha"
                   value={s.avg_test_pct != null ? `${s.avg_test_pct}%` : '—'}
                   sub={s.total_tests === 0 ? 'Test mavjud emas' : undefined}
@@ -344,10 +266,10 @@ export default function GroupReportModal({ group, onClose }) {
               {s.total_lessons > 0 && (() => {
                 const total = (s.total_present||0) + (s.total_absent||0) + (s.total_late||0) + (s.total_excused||0)
                 const bars = [
-                  { label: 'Keldi',      val: s.total_present, color: '#10b981', icon: <IcCheckCircle />, iconCls: 'text-emerald-500' },
-                  { label: 'Kelmadi',    val: s.total_absent,  color: '#f43f5e', icon: <IcXCircle />,    iconCls: 'text-rose-500'    },
-                  { label: 'Kech qoldi', val: s.total_late,    color: '#3b82f6', icon: <IcClock />,      iconCls: 'text-blue-500'    },
-                  { label: 'Sababli',    val: s.total_excused, color: '#f59e0b', icon: <IcShield />,     iconCls: 'text-amber-500'   },
+                  { label: 'Keldi',      val: s.total_present, color: '#10b981', icon: <Check className="w-4 h-4" />, iconCls: 'text-emerald-500' },
+                  { label: 'Kelmadi',    val: s.total_absent,  color: '#f43f5e', icon: <X className="w-4 h-4" />,    iconCls: 'text-rose-500'    },
+                  { label: 'Kech qoldi', val: s.total_late,    color: '#3b82f6', icon: <Clock className="w-4 h-4" />,      iconCls: 'text-blue-500'    },
+                  { label: 'Sababli',    val: s.total_excused, color: '#f59e0b', icon: <Shield className="w-4 h-4" />,     iconCls: 'text-amber-500'   },
                 ]
                 return (
                   <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
@@ -376,7 +298,7 @@ export default function GroupReportModal({ group, onClose }) {
               {atRisk.length > 0 && (
                 <div className="rounded-2xl border border-rose-100 overflow-hidden">
                   <div className="bg-rose-50 px-5 py-3 flex items-center gap-2">
-                    <span className="text-rose-500"><IcAlertTriangle /></span>
+                    <span className="text-rose-500"><AlertTriangle className="w-4 h-4" /></span>
                     <p className="text-sm font-semibold text-rose-700">
                       E'tibor talab etadi — {atRisk.length} ta o'quvchi
                     </p>
@@ -410,7 +332,7 @@ export default function GroupReportModal({ group, onClose }) {
                     <span className="ml-2 text-xs font-normal text-slate-400">{report.students.length} ta</span>
                   </p>
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-400"><IcSort /></span>
+                    <span className="text-slate-400"><AlignLeft className="w-3.5 h-3.5" /></span>
                     <select value={sortBy} onChange={e => setSortBy(e.target.value)}
                       className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white">
                       <option value="absent">Ko'p qoldirganlar</option>

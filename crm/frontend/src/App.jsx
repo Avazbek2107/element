@@ -15,6 +15,9 @@ const Results   = lazy(() => import('./pages/Results'))
 const Timetable = lazy(() => import('./pages/Timetable'))
 const Rooms     = lazy(() => import('./pages/Rooms'))
 const Materials = lazy(() => import('./pages/Materials'))
+const Payments    = lazy(() => import('./pages/Payments'))
+const Assessments = lazy(() => import('./pages/Assessments'))
+const SuperAdmin  = lazy(() => import('./pages/SuperAdmin'))
 
 function PageLoader() {
   return (
@@ -49,6 +52,9 @@ export default function App() {
             <Route path="/timetable" element={<PrivateRoute><Timetable /></PrivateRoute>} />
             <Route path="/rooms" element={<PrivateRoute><Rooms /></PrivateRoute>} />
             <Route path="/materials" element={<PrivateRoute><Materials /></PrivateRoute>} />
+            <Route path="/payments"     element={<PrivateRoute><Payments    /></PrivateRoute>} />
+            <Route path="/assessments"  element={<PrivateRoute><Assessments /></PrivateRoute>} />
+            <Route path="/super-admin"  element={<PrivateRoute><SuperAdmin  /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

@@ -73,7 +73,7 @@ def all_results(
     skip: int = Query(0, ge=0),
     limit: int = Query(30, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher)),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher, module="results")),
 ):
     q = db.query(TestResult).filter(TestResult.status == TestStatus.submitted)
     if test_id:

@@ -12,7 +12,7 @@ from app.utils.auth import hash_password
 
 router = APIRouter(prefix="/api/students", tags=["students"])
 
-AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher)
+AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="students")
 
 
 def _build_student_out(profile: StudentProfile) -> StudentOut:
@@ -97,10 +97,14 @@ def create_student(
     profile = StudentProfile(
         user_id=user.id,
         group_id=body.group_id,
+        middle_name=body.middle_name,
+        gender=body.gender,
         birth_date=body.birth_date,
         parent_phone=body.parent_phone,
         parent_telegram_id=body.parent_telegram_id,
         address=body.address,
+        doc_type=body.doc_type,
+        doc_series=body.doc_series,
         course_start_date=body.course_start_date,
         course_end_date=body.course_end_date,
     )
@@ -156,7 +160,7 @@ def update_student(
 def delete_student(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.admin)),
+    current_user: User = Depends(require_roles(UserRole.admin, module="students")),
 ):
     profile = db.query(StudentProfile).filter(StudentProfile.id == student_id).first()
     if not profile:

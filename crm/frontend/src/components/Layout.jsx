@@ -4,56 +4,93 @@ import { useEffect, useRef, useState } from 'react'
 import { attendanceApi } from '../services/api'
 import ElementLogo from './ElementLogo'
 import AiChat from './AiChat'
+import { Bell, Menu, X, ChevronDown } from 'lucide-react'
 
-const navItems = [
-  { path: '/',           label: 'Dashboard',          roles: ['admin', 'teacher'] },
-  { path: '/students',   label: "O'quvchilar",         roles: ['admin', 'teacher'] },
-  { path: '/groups',     label: 'Guruhlar',            roles: ['admin', 'teacher'] },
-  { path: '/teachers',   label: "O'qituvchilar",       roles: ['admin'] },
-  { path: '/attendance', label: "Yo'qlama",            roles: ['admin', 'teacher'] },
-  { path: '/tests',      label: 'Testlar',             roles: ['admin', 'teacher', 'student'] },
-  { path: '/results',    label: 'Natijalar',           roles: ['admin', 'teacher', 'student'] },
-  { path: '/timetable',  label: 'Dars Jadvali',        roles: ['admin', 'teacher', 'student'] },
-  { path: '/rooms',      label: "O'quv xona",          roles: ['admin', 'teacher'] },
-  { path: '/materials',  label: "O'quv materiallari",  roles: ['admin', 'teacher', 'student'] },
+/* ── Navigatsiya tuzilishi ─────────────────────────────────────────── */
+const NAV_STRUCTURE = [
+  {
+    type: 'link',
+    path: '/',
+    label: 'Dashboard',
+    roles: ['super_admin', 'admin', 'teacher'],
+  },
+  {
+    type: 'link',
+    path: '/timetable',
+    label: 'Dars jadvali',
+    roles: ['super_admin', 'admin', 'teacher', 'student'],
+  },
+  {
+    type: 'section',
+    key: 'teachers',
+    label: "O'qituvchilar",
+    items: [
+      { path: '/teachers', label: "O'qituvchilar", roles: ['super_admin', 'admin'], permission: 'teachers' },
+    ],
+  },
+  {
+    type: 'section',
+    key: 'students',
+    label: "O'quvchilar",
+    items: [
+      { path: '/students', label: "O'quvchilar", roles: ['super_admin', 'admin', 'teacher'], permission: 'students' },
+    ],
+  },
+  {
+    type: 'section',
+    key: 'learning',
+    label: "O'quv jarayoni",
+    items: [
+      { path: '/groups',      label: 'Guruhlar',  roles: ['super_admin', 'admin', 'teacher'], permission: 'groups' },
+      { path: '/attendance',  label: "Yo'qlama",  roles: ['super_admin', 'admin', 'teacher'], permission: 'attendance' },
+      { path: '/assessments', label: 'Baholash',  roles: ['super_admin', 'admin', 'teacher'], permission: 'assessments' },
+      { path: '/tests',       label: 'Testlar',   roles: ['super_admin', 'admin', 'teacher', 'student'] },
+      { path: '/results',     label: 'Natijalar', roles: ['super_admin', 'admin', 'teacher', 'student'] },
+    ],
+  },
+  {
+    type: 'section',
+    key: 'resources',
+    label: 'Resurslar',
+    items: [
+      { path: '/rooms',     label: "O'quv xonalari",    roles: ['super_admin', 'admin', 'teacher'], permission: 'rooms' },
+      { path: '/materials', label: "O'quv materiallari", roles: ['super_admin', 'admin', 'teacher', 'student'], permission: 'materials' },
+    ],
+  },
+  {
+    type: 'section',
+    key: 'payments',
+    label: "To'lovlar",
+    items: [
+      { path: '/payments', label: "To'lovlar", roles: ['super_admin', 'admin'], permission: 'payments' },
+    ],
+  },
+  {
+    type: 'section',
+    key: 'admin',
+    label: 'Boshqaruv',
+    items: [
+      { path: '/super-admin', label: 'Boshqaruv', roles: ['super_admin'] },
+    ],
+  },
 ]
 
-function BellIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-    </svg>
-  )
-}
-
-function MenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-      <line x1="3" y1="6" x2="21" y2="6"/>
-      <line x1="3" y1="12" x2="21" y2="12"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  )
-}
-
+/* ── Bildirishnomalar qo'ng'irog'i ─────────────────────────────────── */
 function NotificationBell() {
-  const [notifs, setNotifs] = useState([])
-  const [open,   setOpen]   = useState(false)
-  const ref = useRef()
+  const [notifs,    setNotifs]    = useState([])
+  const [open,      setOpen]      = useState(false)
+  const [pos,       setPos]       = useState({ top: 0, left: 0 })
+  const [dismissed, setDismissed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dismissed_notifs') || '[]') }
+    catch { return [] }
+  })
+  const ref    = useRef()
+  const btnRef = useRef()
+  const navigate = useNavigate()
 
-  useEffect(() => {
-    const fetch = () => {
-      attendanceApi.notifications()
-        .then(({ data }) => setNotifs(data))
-        .catch(() => {})
-    }
-    fetch()
-    const interval = setInterval(fetch, 60_000)
-    return () => clearInterval(interval)
-  }, [])
+  const load = () => attendanceApi.notifications().then(({ data }) => setNotifs(data)).catch(() => {})
+
+  useEffect(() => { load(); const iv = setInterval(load, 60_000); return () => clearInterval(iv) }, [])
 
   useEffect(() => {
     if (!open) return
@@ -62,47 +99,88 @@ function NotificationBell() {
     return () => document.removeEventListener('mousedown', fn)
   }, [open])
 
+  const dismiss = (key, e) => {
+    e.stopPropagation()
+    const next = [...dismissed, key]
+    setDismissed(next)
+    localStorage.setItem('dismissed_notifs', JSON.stringify(next))
+  }
+
+  const visible = notifs.filter(n => !dismissed.includes(`${n.group_id}_${n.date}`))
+
+  const dismissAll = () => {
+    const keys = visible.map(n => `${n.group_id}_${n.date}`)
+    const next = [...dismissed, ...keys]
+    setDismissed(next)
+    localStorage.setItem('dismissed_notifs', JSON.stringify(next))
+    setOpen(false)
+  }
+
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ bottom: window.innerHeight - r.top + 8, left: Math.max(8, r.left - 288 + r.width) })
+    }
+    setOpen(v => !v)
+  }
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref}>
       <button
-        onClick={() => setOpen(v => !v)}
+        ref={btnRef}
+        onClick={handleOpen}
         className="relative w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
       >
-        <BellIcon />
-        {notifs.length > 0 && (
+        <Bell className="w-5 h-5" />
+        {visible.length > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold leading-none">
-            {notifs.length}
+            {visible.length}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+        <div
+          className="fixed w-72 bg-white rounded-xl shadow-xl border border-gray-100 z-[9999] overflow-hidden"
+          style={{ bottom: pos.bottom, left: pos.left }}
+        >
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-800">Bildirishnomalar</span>
-            {notifs.length > 0 && (
-              <span className="text-xs bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">
-                {notifs.length} ta
-              </span>
+            {visible.length > 0 && (
+              <button onClick={dismissAll} className="text-xs text-gray-400 hover:text-red-500 transition-colors">
+                Barchasini yopish
+              </button>
             )}
           </div>
-
-          {notifs.length === 0 ? (
+          {visible.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">Bildirishnomalar yo'q</p>
           ) : (
-            <ul className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-              {notifs.map((n, i) => (
-                <li key={i} className="px-4 py-3 hover:bg-red-50 transition-colors">
-                  <div className="flex items-start gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{n.group_name}</p>
-                      <p className="text-xs text-red-600 mt-0.5">Yo'qlama belgilanmagan — {n.time}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{n.date}</p>
+            <ul className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+              {visible.map(n => {
+                const key = `${n.group_id}_${n.date}`
+                return (
+                  <li
+                    key={key}
+                    onClick={() => { setOpen(false); navigate(`/attendance?group_id=${n.group_id}&date=${n.date}`) }}
+                    className="px-4 py-3 hover:bg-red-50 transition-colors cursor-pointer flex items-start justify-between gap-2 group"
+                  >
+                    <div className="flex items-start gap-2 min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{n.group_name}</p>
+                        <p className="text-xs text-red-600 mt-0.5">Yo'qlama belgilanmagan — {n.time}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{n.date}</p>
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                    <button
+                      onClick={e => dismiss(key, e)}
+                      className="shrink-0 text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 mt-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
@@ -111,12 +189,84 @@ function NotificationBell() {
   )
 }
 
+/* ── Bo'lim komponenti ──────────────────────────────────────────────── */
+function NavSection({ section, location, user, hasPermission, open, onToggle, onNavClick }) {
+  const visibleItems = section.items.filter(item => {
+    if (!item.roles.includes(user?.role)) return false
+    if (item.permission) return hasPermission(item.permission)
+    return true
+  })
+  if (visibleItems.length === 0) return null
+
+  const isActive = visibleItems.some(item => location.pathname === item.path)
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between px-3 py-1.5 rounded-md transition-colors group mt-1
+          ${isActive ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wider">{section.label}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? '' : '-rotate-90'}`}
+        />
+      </button>
+
+      {open && (
+        <div className="mt-0.5 space-y-0.5">
+          {visibleItems.map(item => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={onNavClick}
+              className={`flex items-center gap-2 pl-5 pr-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === item.path
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+              }`}
+            >
+              <span className={`w-1 h-1 rounded-full shrink-0 ${
+                location.pathname === item.path ? 'bg-blue-500' : 'bg-gray-300'
+              }`} />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Sidebar ichidagi kontent ───────────────────────────────────────── */
 function SidebarContent({ user, location, onNavClick, onLogout }) {
-  const visibleItems = navItems.filter(item => item.roles.includes(user?.role))
+  const { hasPermission } = useAuth()
+
+  // Har bir section uchun ochiq/yopiq holat
+  const [openSections, setOpenSections] = useState(() => {
+    const defaults = {}
+    NAV_STRUCTURE.forEach(item => { if (item.type === 'section') defaults[item.key] = true })
+    try {
+      const saved = JSON.parse(localStorage.getItem('nav_sections') || '{}')
+      return { ...defaults, ...saved }
+    } catch { return defaults }
+  })
+
+  const toggleSection = (key) => {
+    setOpenSections(prev => {
+      const isOpen = prev[key]
+      const next = {}
+      Object.keys(prev).forEach(k => { next[k] = false })
+      next[key] = !isOpen
+      localStorage.setItem('nav_sections', JSON.stringify(next))
+      return next
+    })
+  }
 
   return (
     <>
-      <div className="p-5 border-b flex items-center gap-3">
+      {/* Logo */}
+      <div className="p-5 border-b flex items-center gap-3 shrink-0">
         <ElementLogo size={38} />
         <div>
           <div className="text-base font-bold text-gray-900 tracking-wide">element</div>
@@ -124,30 +274,50 @@ function SidebarContent({ user, location, onNavClick, onLogout }) {
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {visibleItems.map(item => (
-          <Link
-            key={item.path}
-            to={item.path}
-            onClick={onNavClick}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              location.pathname === item.path
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            {item.label}
-          </Link>
-        ))}
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+        {NAV_STRUCTURE.map((entry, idx) => {
+          if (entry.type === 'link') {
+            if (!entry.roles.includes(user?.role)) return null
+            return (
+              <Link
+                key={entry.path}
+                to={entry.path}
+                onClick={onNavClick}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  location.pathname === entry.path
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                }`}
+              >
+                {entry.label}
+              </Link>
+            )
+          }
+
+          return (
+            <NavSection
+              key={entry.key}
+              section={entry}
+              location={location}
+              user={user}
+              hasPermission={hasPermission}
+              open={openSections[entry.key]}
+              onToggle={() => toggleSection(entry.key)}
+              onNavClick={onNavClick}
+            />
+          )
+        })}
       </nav>
 
-      <div className="p-4 border-t flex items-center justify-between gap-2">
+      {/* Foydalanuvchi */}
+      <div className="p-4 border-t flex items-center justify-between gap-2 shrink-0">
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-700 truncate">{user?.first_name} {user?.last_name}</p>
           <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {(user?.role === 'admin' || user?.role === 'teacher') && <NotificationBell />}
+          {['super_admin', 'admin', 'teacher'].includes(user?.role) && <NotificationBell />}
           <button
             onClick={onLogout}
             className="text-xs text-red-500 hover:text-red-700 whitespace-nowrap px-1"
@@ -160,28 +330,22 @@ function SidebarContent({ user, location, onNavClick, onLogout }) {
   )
 }
 
+/* ── Asosiy Layout ──────────────────────────────────────────────────── */
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const location         = useLocation()
   const navigate         = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
-
+  const handleLogout = () => { logout(); navigate('/login') }
   const closeSidebar = () => setSidebarOpen(false)
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
 
-      {/* Mobile overlay backdrop */}
+      {/* Mobile backdrop */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
-          onClick={closeSidebar}
-        />
+        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={closeSidebar} />
       )}
 
       {/* Sidebar */}
@@ -200,7 +364,7 @@ export default function Layout({ children }) {
         />
       </aside>
 
-      {/* Main area */}
+      {/* Asosiy maydon */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center gap-3 bg-white border-b border-gray-100 px-4 py-3 shrink-0">
@@ -208,7 +372,7 @@ export default function Layout({ children }) {
             onClick={() => setSidebarOpen(v => !v)}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
           >
-            <MenuIcon />
+            <Menu className="w-5 h-5" />
           </button>
           <ElementLogo size={28} />
           <span className="font-bold text-gray-800">element</span>
@@ -219,8 +383,8 @@ export default function Layout({ children }) {
         </main>
       </div>
 
-      {/* AiChat — sidebar tashqarisida, transform ta'sir qilmaydi */}
-      {(user?.role === 'admin' || user?.role === 'teacher') && <AiChat />}
+      {/* AI Chat */}
+      {['super_admin', 'admin', 'teacher'].includes(user?.role) && <AiChat />}
     </div>
   )
 }

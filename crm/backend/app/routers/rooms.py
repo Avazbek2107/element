@@ -9,7 +9,7 @@ from app.utils.auth import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
 
-AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher)
+AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="rooms")
 
 
 @router.get("", response_model=List[RoomOut])
@@ -54,7 +54,7 @@ def update_room(
 def delete_room(
     room_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.admin)),
+    current_user: User = Depends(require_roles(UserRole.admin, module="rooms")),
 ):
     room = db.query(Room).filter(Room.id == room_id).first()
     if not room:

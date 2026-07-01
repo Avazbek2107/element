@@ -57,9 +57,16 @@ def get_current_user(
     return user
 
 
-def require_roles(*roles):
+def require_roles(*roles, module: Optional[str] = None):
     def checker(current_user=Depends(get_current_user)):
+        role_value = getattr(current_user.role, 'value', current_user.role)
+        if role_value == "super_admin":
+            return current_user  # super_admin barcha rollardan o'tadi
         if current_user.role not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ruxsat yo'q")
+        if module and role_value == "admin":
+            perms = current_user.permissions
+            if perms and module not in perms:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bu modulga ruxsat yo'q")
         return current_user
     return checker

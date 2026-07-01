@@ -1,28 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { aiApi } from '../services/api'
-
-const IcSparkle = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
-    <path d="M19 3L19.75 5.25L22 6L19.75 6.75L19 9L18.25 6.75L16 6L18.25 5.25L19 3Z"/>
-    <path d="M5 17L5.5 18.5L7 19L5.5 19.5L5 21L4.5 19.5L3 19L4.5 18.5L5 17Z"/>
-  </svg>
-)
-const IcSend = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-  </svg>
-)
-const IcClose = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-)
-const IcMinus = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
-)
+import { Sparkles, Send, X, Minus } from 'lucide-react'
 
 const HINTS = [
   "Bugun nechta o'quvchi keldi?",
@@ -73,7 +51,7 @@ export default function AiChat() {
         className="fixed bottom-5 right-5 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white shadow-lg transition-all hover:scale-105"
         style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 24px rgba(99,102,241,0.4)' }}
       >
-        <IcSparkle />
+        <Sparkles className="w-4 h-4" />
         AI Yordamchi
       </button>
     )
@@ -97,7 +75,7 @@ export default function AiChat() {
         onClick={() => setMini(v => !v)}
       >
         <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center text-white shrink-0">
-          <IcSparkle />
+          <Sparkles className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-800">AI Yordamchi</p>
@@ -105,11 +83,11 @@ export default function AiChat() {
         </div>
         <button onClick={e => { e.stopPropagation(); setMini(v => !v) }}
           className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors">
-          <IcMinus />
+          <Minus className="w-4 h-4" />
         </button>
         <button onClick={e => { e.stopPropagation(); setOpen(false); setHistory([]) }}
           className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors">
-          <IcClose />
+          <X className="w-4 h-4" />
         </button>
       </div>
 
@@ -120,7 +98,7 @@ export default function AiChat() {
             {history.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full gap-4 pb-4">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-                  <IcSparkle />
+                  <Sparkles className="w-4 h-4" />
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-semibold text-slate-700">Salom! Yordam bera olaman</p>
@@ -141,7 +119,7 @@ export default function AiChat() {
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {m.role === 'assistant' && (
                   <div className="w-6 h-6 rounded-lg bg-indigo-500 flex items-center justify-center text-white mr-2 mt-0.5 shrink-0">
-                    <IcSparkle />
+                    <Sparkles className="w-4 h-4" />
                   </div>
                 )}
                 <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
@@ -157,7 +135,7 @@ export default function AiChat() {
             {loading && (
               <div className="flex justify-start">
                 <div className="w-6 h-6 rounded-lg bg-indigo-500 flex items-center justify-center text-white mr-2 mt-0.5 shrink-0">
-                  <IcSparkle />
+                  <Sparkles className="w-4 h-4" />
                 </div>
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center">
                   {[0,1,2].map(i => (
@@ -183,7 +161,7 @@ export default function AiChat() {
               />
               <button onClick={() => send()} disabled={!input.trim() || loading}
                 className="w-7 h-7 rounded-lg bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 flex items-center justify-center text-white transition-colors shrink-0">
-                <IcSend />
+                <Send className="w-4 h-4" />
               </button>
             </div>
             <p className="text-center text-xs text-slate-300 mt-1.5">Claude AI · element CRM</p>

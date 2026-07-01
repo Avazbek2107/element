@@ -122,6 +122,33 @@ export const aiApi = {
   chat:              (data)    => api.post('/ai/chat', data),
 }
 
+export const assessmentsApi = {
+  list:          (params)           => api.get('/assessments', { params }),
+  bulkSave:      (data, send=false) => api.post(`/assessments/bulk?send=${send}`, data),
+  sendReport:    (groupId, date)    => api.post(`/assessments/send-report?group_id=${groupId}&date=${date}`),
+  getSchedule:   (groupId)          => api.get(`/assessments/schedule/${groupId}`),
+  setSchedule:   (data)             => api.post('/assessments/schedule', data),
+  deleteSchedule:(groupId)          => api.delete(`/assessments/schedule/${groupId}`),
+}
+
+export const paymentsApi = {
+  list:    (params)     => api.get('/payments', { params }),
+  summary: (params)     => api.get('/payments/summary', { params }),
+  create:  (data)       => api.post('/payments', data),
+  bulk:    (data)       => api.post('/payments/bulk', data),
+  update:  (id, data)   => api.put(`/payments/${id}`, data),
+  delete:  (id)         => api.delete(`/payments/${id}`),
+}
+
+export const superAdminApi = {
+  listUsers:       (role)        => api.get('/superadmin/users', { params: role ? { role } : {} }),
+  createUser:      (data)        => api.post('/superadmin/users', data),
+  updateUser:      (id, data)    => api.put(`/superadmin/users/${id}`, data),
+  setPermissions:  (id, perms)   => api.put(`/superadmin/users/${id}/permissions`, { permissions: perms }),
+  deleteUser:      (id)          => api.delete(`/superadmin/users/${id}`),
+  getModules:      ()            => api.get('/superadmin/modules'),
+}
+
 export const telegramApi = {
   getLinkCode:        (studentId) => api.get(`/telegram/link-code/${studentId}`),
   getStudentLinkCode: (studentId) => api.get(`/telegram/student-link-code/${studentId}`),

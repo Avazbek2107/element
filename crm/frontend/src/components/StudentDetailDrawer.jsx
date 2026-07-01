@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import Avatar from './GenderAvatar'
 import { telegramApi } from '../services/api'
 import toast from 'react-hot-toast'
+import { CheckCircle2 } from 'lucide-react'
 
 const Row = ({ label, value }) =>
   value ? (
@@ -21,7 +22,7 @@ function CodeBlock({ label, code, deepLink, isLinked, onLoad, loading }) {
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-600">{label}</span>
         <span className={`text-xs px-2 py-0.5 rounded-full ${isLinked ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
-          {isLinked ? "✅ Bog'langan" : "Bog'lanmagan"}
+          {isLinked ? <span className="inline-flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" />Bog'langan</span> : "Bog'lanmagan"}
         </span>
       </div>
       {!code && (

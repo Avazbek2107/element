@@ -14,9 +14,9 @@ class AttendanceMarkItem(BaseModel):
 class AttendanceMark(BaseModel):
     group_id:  int
     date:      date
+    records:   List[AttendanceMarkItem]
     module_id: Optional[int] = None
     topic_id:  Optional[int] = None
-    records:   List[AttendanceMarkItem]
 
 
 class AttendanceOut(BaseModel):

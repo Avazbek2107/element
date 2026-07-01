@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { groupsApi, roomsApi, attendanceApi } from '../services/api'
+import { ChevronRight, Calendar, User, Users, Clock, DoorOpen } from 'lucide-react'
 
 /* ── Konstantalar ── */
 const DAY_KEYS  = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -95,14 +96,14 @@ function SessionTooltip({ s, onClose }) {
         <p className="font-semibold text-gray-800 text-sm leading-tight">{s.name}</p>
       </div>
       {s.teacher && (
-        <p className="text-xs text-gray-500 mb-1">👤 {s.teacher}</p>
+        <p className="flex items-center gap-1 text-xs text-gray-500 mb-1"><User className="w-3 h-3" />{s.teacher}</p>
       )}
-      <p className="text-xs text-gray-500 mb-1">
-        🕐 {formatTime(s.start)} — {formatTime(s.end)}
+      <p className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+        <Clock className="w-3 h-3" />{formatTime(s.start)} — {formatTime(s.end)}
         <span className="ml-1 text-gray-400">({Math.round((s.end - s.start) * 60)} min)</span>
       </p>
-      <p className="text-xs text-gray-500">👥 {s.studentCount} o'quvchi</p>
-      {s.roomName && <p className="text-xs text-gray-500 mt-1">🚪 {s.roomName}</p>}
+      <p className="flex items-center gap-1 text-xs text-gray-500"><Users className="w-3 h-3" />{s.studentCount} o'quvchi</p>
+      {s.roomName && <p className="flex items-center gap-1 text-xs text-gray-500 mt-1"><DoorOpen className="w-3 h-3" />{s.roomName}</p>}
     </div>
   )
 }
@@ -256,17 +257,13 @@ export default function Timetable() {
             onClick={goPrev}
             className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
+            <ChevronRight className="w-4 h-4 rotate-180" />
           </button>
 
           {/* Sana input */}
           <label className="relative cursor-pointer">
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 h-8 shadow-sm hover:bg-gray-50 transition-colors">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 text-gray-400 shrink-0">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
+              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
                 {formatDateShort(weekStart)} — {formatDateShort(addDays(weekStart, 6))}
               </span>
@@ -286,9 +283,7 @@ export default function Timetable() {
             onClick={goNext}
             className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 

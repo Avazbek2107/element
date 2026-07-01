@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
@@ -14,7 +14,20 @@ from app.utils.notify import send_telegram_message
 
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
 
-AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher)
+AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="attendance")
+
+
+def _teacher_group_ids(user: User, db: Session) -> list[int]:
+    from app.models.group import Group as _Group
+    groups = db.query(_Group.id).filter(_Group.teacher_id == user.id, _Group.is_active == True).all()
+    return [g.id for g in groups]
+
+
+def _check_group_access(user: User, group_id: int, db: Session):
+    if user.role == UserRole.teacher:
+        ids = _teacher_group_ids(user, db)
+        if group_id not in ids:
+            raise HTTPException(status_code=403, detail="Bu guruhga kirish ruxsati yo'q")
 
 
 @router.get("", response_model=List[AttendanceOut])
@@ -25,6 +38,7 @@ def list_attendance(
     db:        Session        = Depends(get_db),
     current_user: User        = Depends(AdminOrTeacher),
 ):
+    _check_group_access(current_user, group_id, db)
     q = db.query(Attendance).options(
         joinedload(Attendance.student).joinedload(StudentProfile.user)
     ).filter(Attendance.group_id == group_id)
@@ -56,6 +70,14 @@ def mark_attendance(
     db:   Session = Depends(get_db),
     current_user: User = Depends(AdminOrTeacher),
 ):
+    _check_group_access(current_user, body.group_id, db)
+    valid_student_ids = {
+        s.id for s in db.query(StudentProfile.id).filter(StudentProfile.group_id == body.group_id).all()
+    }
+    for item in body.records:
+        if item.student_id not in valid_student_ids:
+            raise HTTPException(403, "O'quvchi bu guruhga tegishli emas")
+
     db.query(Attendance).filter(
         Attendance.group_id == body.group_id,
         Attendance.date     == body.date,
@@ -163,6 +185,7 @@ def attendance_summary(
     db:       Session = Depends(get_db),
     current_user: User = Depends(AdminOrTeacher),
 ):
+    _check_group_access(current_user, group_id, db)
     rows = (
         db.query(
             Attendance.date,
@@ -200,7 +223,11 @@ def today_stats(
 
     base = db.query(Attendance).filter(Attendance.date == today)
     if group_id:
+        _check_group_access(current_user, group_id, db)
         base = base.filter(Attendance.group_id == group_id)
+    elif current_user.role == UserRole.teacher:
+        ids = _teacher_group_ids(current_user, db)
+        base = base.filter(Attendance.group_id.in_(ids))
 
     present = base.filter(Attendance.status == AttendanceStatus.present).count()
     absent  = base.filter(Attendance.status == AttendanceStatus.absent).count()

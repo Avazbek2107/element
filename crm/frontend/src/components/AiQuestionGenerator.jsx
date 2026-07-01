@@ -1,18 +1,7 @@
 import { useState } from 'react'
 import { aiApi } from '../services/api'
 import toast from 'react-hot-toast'
-
-const IcSparkle = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
-    <path d="M19 3L19.75 5.25L22 6L19.75 6.75L19 9L18.25 6.75L16 6L18.25 5.25L19 3Z"/>
-  </svg>
-)
-const IcClose = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-)
+import { Sparkles, X } from 'lucide-react'
 
 export default function AiQuestionGenerator({ onAdd, onClose }) {
   const [topic,      setTopic]      = useState('')
@@ -64,7 +53,7 @@ export default function AiQuestionGenerator({ onAdd, onClose }) {
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 shrink-0">
           <div className="w-8 h-8 rounded-xl bg-indigo-500 flex items-center justify-center text-white">
-            <IcSparkle />
+            <Sparkles className="w-4 h-4" />
           </div>
           <div className="flex-1">
             <h2 className="text-base font-bold text-slate-800">AI bilan savol yaratish</h2>
@@ -72,7 +61,7 @@ export default function AiQuestionGenerator({ onAdd, onClose }) {
           </div>
           <button onClick={onClose}
             className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
-            <IcClose />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -122,7 +111,7 @@ export default function AiQuestionGenerator({ onAdd, onClose }) {
               </>
             ) : (
               <>
-                <IcSparkle />
+                <Sparkles className="w-4 h-4" />
                 {questions.length > 0 ? 'Qayta yaratish' : 'Savollar yaratish'}
               </>
             )}

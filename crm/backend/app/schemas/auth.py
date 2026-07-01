@@ -13,7 +13,6 @@ class RegisterRequest(BaseModel):
     password: str
     first_name: str
     last_name: str
-    role: UserRole = UserRole.student
     phone: str | None = None
 
 
@@ -31,10 +30,12 @@ class UserOut(BaseModel):
     id: int
     username: str
     email: str
+    phone: str | None = None
     first_name: str
     last_name: str
     role: UserRole
     is_active: bool
+    permissions: list[str] | None = None
 
     class Config:
         from_attributes = True

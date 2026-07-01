@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { materialsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+import { Plus, Pencil, Trash2, FileText, BookOpen } from 'lucide-react'
 
 /* ── Modul modal ── */
 function ModuleModal({ mod, onClose, onSaved }) {
@@ -203,9 +204,7 @@ function ModulePanel({ mod, canEdit, onTopicChange }) {
             onClick={() => setModal('create')}
             className="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-sm hover:bg-blue-700 font-medium flex items-center gap-1.5 shrink-0"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+            <Plus className="w-3.5 h-3.5" />
             Mavzu qo'sh
           </button>
         )}
@@ -216,9 +215,7 @@ function ModulePanel({ mod, canEdit, onTopicChange }) {
       ) : topics.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7 text-gray-400">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-            </svg>
+            <FileText className="w-7 h-7 text-gray-400" />
           </div>
           <p className="text-gray-400 text-sm">Hali mavzular kiritilmagan</p>
           {canEdit && (
@@ -322,9 +319,7 @@ export default function Materials() {
       ) : modules.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-blue-400">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-            </svg>
+            <BookOpen className="w-8 h-8 text-blue-400" />
           </div>
           <p className="text-gray-500 font-medium mb-1">Hali modullar kiritilmagan</p>
           {canEdit && (
@@ -363,25 +358,19 @@ export default function Materials() {
                         onClick={() => setModModal(m)}
                         className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-blue-100 text-gray-400 hover:text-blue-600 transition-colors"
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
+                        <Pencil className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => handleDeleteModule(m.id)}
                         className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors"
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
-                        </svg>
+                        <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   )}
                 </div>
                 <div className={`flex items-center gap-1 mt-1.5 ml-8.5 ${selected?.id === m.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  </svg>
+                  <FileText className="w-3 h-3" />
                   <span className="text-xs">{m.topics?.length ?? 0} ta mavzu</span>
                 </div>
               </div>
@@ -393,9 +382,7 @@ export default function Materials() {
                 onClick={() => setModModal('create')}
                 className="rounded-xl px-4 py-3 border-2 border-dashed border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500 text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
+                <Plus className="w-4 h-4" />
                 Modul qo'sh
               </button>
             )}

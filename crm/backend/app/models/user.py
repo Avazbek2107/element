@@ -1,9 +1,10 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, Enum, JSON
 import enum
 from app.database import Base
 
 
 class UserRole(str, enum.Enum):
+    super_admin = "super_admin"
     admin = "admin"
     teacher = "teacher"
     student = "student"
@@ -22,5 +23,6 @@ class User(Base):
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
     is_active = Column(Boolean, default=True)
+    permissions = Column(JSON, nullable=True)  # admin uchun ruxsat ro'yxati; null = hammasi
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

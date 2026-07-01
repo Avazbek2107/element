@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { groupsApi, usersApi, roomsApi } from '../services/api'
 import toast from 'react-hot-toast'
 import GroupReportModal from '../components/GroupReportModal'
+import { User, BarChart2 } from 'lucide-react'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_UZ = {
@@ -76,9 +77,7 @@ function GroupCard({ g, onEdit, onDelete, onReport, rooms }) {
 
       {/* O'qituvchi */}
       <div className="flex items-center gap-2 text-sm text-gray-600">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-gray-400 shrink-0">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-        </svg>
+        <User className="w-4 h-4 text-gray-400 shrink-0" />
         {g.teacher_name
           ? <span>{g.teacher_name}</span>
           : <span className="text-gray-300 italic">O'qituvchi biriktirilmagan</span>
@@ -122,10 +121,7 @@ function GroupCard({ g, onEdit, onDelete, onReport, rooms }) {
           </a>
         )}
         <button onClick={() => onReport(g)} className="flex items-center gap-1 text-indigo-600 text-xs hover:underline ml-auto font-medium">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
-          </svg>
+          <BarChart2 className="w-3.5 h-3.5" />
           Hisobot
         </button>
       </div>

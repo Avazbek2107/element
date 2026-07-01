@@ -19,9 +19,14 @@ from app.models.group import Group
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
-AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher)
+AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="tests")
 
 GRADES = [(90, "A'lo"), (75, "Yaxshi"), (50, "O'rtacha"), (0, "Yomon")]
+
+
+def _check_test_owner(user: User, test: Test):
+    if user.role == UserRole.teacher and test.teacher_id != user.id:
+        raise HTTPException(status_code=403, detail="Bu testga kirish ruxsati yo'q")
 
 
 def _grade(percentage: float) -> str:
@@ -126,6 +131,7 @@ def get_test(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
     return test
 
 
@@ -139,6 +145,7 @@ def update_test(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
     for key, value in body.model_dump(exclude_none=True).items():
         setattr(test, key, value)
     db.commit()
@@ -155,6 +162,7 @@ def delete_test(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
     db.delete(test)
     db.commit()
 
@@ -182,6 +190,7 @@ def publish_test(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
     test.is_published = True
     db.commit()
     _notify_group_students(db, test)
@@ -214,6 +223,7 @@ def add_question(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
     question = TestQuestion(test_id=test_id, **body.model_dump())
     db.add(question)
     test.total_questions += 1
@@ -352,6 +362,10 @@ def get_results(
     db: Session = Depends(get_db),
     current_user: User = Depends(AdminOrTeacher),
 ):
+    test = db.query(Test).filter(Test.id == test_id).first()
+    if not test:
+        raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
     results = db.query(TestResult).filter(
         TestResult.test_id == test_id,
         TestResult.status == TestStatus.submitted,
@@ -368,6 +382,7 @@ def get_questions_for_edit(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
     return db.query(TestQuestion).filter(
         TestQuestion.test_id == test_id
     ).order_by(TestQuestion.question_order).all()
@@ -383,6 +398,7 @@ def update_test_full(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
 
     test.title          = body.title
     test.description    = body.description

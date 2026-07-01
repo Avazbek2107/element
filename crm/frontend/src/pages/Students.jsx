@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 import Avatar from '../components/GenderAvatar'
 import StudentDetailDrawer from '../components/StudentDetailDrawer'
+import { CheckCircle2, Users, Copy } from 'lucide-react'
 
 export default function Students() {
   const { user } = useAuth()
@@ -21,21 +22,23 @@ export default function Students() {
   const PAGE_SIZE = 20
   const fileRef = useRef()
 
-  const isTeacher = ['admin', 'teacher'].includes(user?.role)
+  const isTeacher = ['super_admin', 'admin', 'teacher'].includes(user?.role)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const refresh = () => setRefreshKey(k => k + 1)
 
-  const load = (p = page) => {
-    const params = { skip: (p - 1) * PAGE_SIZE, limit: PAGE_SIZE }
+  useEffect(() => { groupsApi.list().then(({ data }) => setGroups(data)).catch(() => {}) }, [])
+
+  useEffect(() => { setPage(1) }, [search, groupFilter])
+
+  useEffect(() => {
+    const params = { skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }
     if (search)      params.search   = search
     if (groupFilter) params.group_id = groupFilter
     studentsApi.list(params).then(({ data }) => {
       setStudents(data.items)
       setTotal(data.total)
     }).catch(() => {})
-  }
-
-  useEffect(() => { groupsApi.list().then(({ data }) => setGroups(data)).catch(() => {}) }, [])
-  useEffect(() => { setPage(1); load(1) }, [search, groupFilter])
-  useEffect(() => { load() }, [page])
+  }, [page, search, groupFilter, refreshKey])
 
   async function handleImport(file) {
     if (!file) return
@@ -47,7 +50,7 @@ export default function Students() {
       const { data } = await studentsApi.importFile(fd)
       setImportResult(data)
       toast.success(`${data.created} ta o'quvchi qo'shildi`)
-      load()
+      refresh()
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Import xatosi')
     } finally {
@@ -62,7 +65,7 @@ export default function Students() {
   }
 
   function handleSaved(updatedStudent) {
-    load()
+    refresh()
     if (updatedStudent) {
       setSelected(updatedStudent)
     }
@@ -123,7 +126,10 @@ export default function Students() {
 
       {/* Cards grid */}
       {students.length === 0 && total === 0 ? (
-        <div className="text-center text-gray-400 py-20 text-sm">O'quvchilar topilmadi</div>
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <Users className="w-14 h-14 text-gray-200 mb-3" />
+          <p className="text-sm">O'quvchilar topilmadi</p>
+        </div>
       ) : (
         <>
           <p className="text-xs text-gray-400">
@@ -229,14 +235,16 @@ function StudentCard({ student, isTeacher, onClick }) {
         {isTeacher && (
           <div className="mt-2 pt-2 border-t border-gray-50">
             {student.parent_telegram_id ? (
-              <span className="text-xs text-green-600 font-medium">✅ Bog'langan</span>
+              <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" />Bog'langan
+              </span>
             ) : code ? (
               <span
                 onClick={copyCode}
                 title="Nusxalash uchun bosing"
                 className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-gray-600 bg-gray-50 px-2 py-0.5 rounded-full hover:bg-gray-100"
               >
-                {code} 📋
+                {code} <Copy className="w-3 h-3" />
               </span>
             ) : (
               <span

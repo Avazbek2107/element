@@ -27,5 +27,3 @@ class Attendance(Base):
 
     student = relationship("StudentProfile")
     group   = relationship("Group")
-    module  = relationship("Module",  foreign_keys=[module_id])
-    topic   = relationship("Topic",   foreign_keys=[topic_id])

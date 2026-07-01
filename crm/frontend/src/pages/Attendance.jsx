@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { groupsApi, studentsApi, attendanceApi, materialsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+import { ClipboardList, BarChart2 } from 'lucide-react'
 
 function emptyRec() {
   return { status: 'present', note: '' }
@@ -131,6 +133,7 @@ function SelectField({ label, value, onChange, children, disabled }) {
 
 export default function Attendance() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
 
   const [groups,        setGroups]        = useState([])
   const [selectedGroup, setSelectedGroup] = useState('')
@@ -148,13 +151,20 @@ export default function Attendance() {
   const [selectedTopic,  setSelectedTopic]  = useState('')
 
   useEffect(() => {
+    const urlGroupId = searchParams.get('group_id')
+    const urlDate    = searchParams.get('date')
+    if (urlDate) setDate(urlDate)
     groupsApi.list().then(({ data }) => {
       let visible = data
       if (user?.role === 'teacher') visible = data.filter(g => g.teacher_id === user.id)
       setGroups(visible)
-      if (visible.length > 0) setSelectedGroup(String(visible[0].id))
+      if (urlGroupId && visible.some(g => String(g.id) === urlGroupId)) {
+        setSelectedGroup(urlGroupId)
+      } else if (visible.length > 0) {
+        setSelectedGroup(String(visible[0].id))
+      }
     }).catch(() => {})
-  }, [user])
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     materialsApi.listModules().then(({ data }) => setModules(data)).catch(() => {})
@@ -171,7 +181,7 @@ export default function Attendance() {
     if (!selectedGroup) return
     setLoading(true); setStudents([]); setRecords({})
     Promise.all([
-      studentsApi.list({ group_id: selectedGroup }).then(r => r.data.items ?? r.data ?? []),
+      studentsApi.list({ group_id: selectedGroup, limit: 200 }).then(r => r.data.items ?? r.data ?? []),
       attendanceApi.list({ group_id: selectedGroup, date_from: date, date_to: date }).then(r => r.data).catch(() => []),
     ]).then(([stList, existing]) => {
       const arr = Array.isArray(stList) ? stList : []
@@ -304,7 +314,9 @@ export default function Attendance() {
               </div>
             ) : students.length === 0 ? (
               <div className="bg-white rounded-2xl p-16 text-center" style={{ border: '1px solid #f1f5f9' }}>
-                <p className="text-4xl mb-3">📋</p>
+                <div className="flex justify-center mb-3">
+                  <ClipboardList className="w-14 h-14 text-gray-200" />
+                </div>
                 <p className="text-sm font-medium text-gray-500">Bu guruhda o'quvchilar yo'q</p>
               </div>
             ) : (
@@ -383,7 +395,9 @@ export default function Attendance() {
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: '1px solid #f1f5f9' }}>
             {history.length === 0 ? (
               <div className="p-16 text-center">
-                <p className="text-4xl mb-3">📊</p>
+                <div className="flex justify-center mb-3">
+                  <BarChart2 className="w-14 h-14 text-gray-200" />
+                </div>
                 <p className="text-sm text-gray-400">Hali yo'qlama belgilanmagan</p>
               </div>
             ) : (

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { testsApi, groupsApi } from '../services/api'
 import toast from 'react-hot-toast'
 import AiQuestionGenerator from '../components/AiQuestionGenerator'
+import { Sparkles } from 'lucide-react'
 
 const LATEX_BUTTONS = [
   { label: 'a/b', code: '\\frac{a}{b}' },
@@ -208,10 +209,7 @@ export default function TestForm({ onBack, editTest, editQuestions }) {
           <button type="button" onClick={() => setShowAiGen(true)}
             className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all"
             style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-              <path d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3Z"/>
-              <path d="M19 3L19.75 5.25L22 6L19.75 6.75L19 9L18.25 6.75L16 6L18.25 5.25L19 3Z"/>
-            </svg>
+            <Sparkles className="w-4 h-4" />
             AI bilan yaratish
           </button>
         </div>
