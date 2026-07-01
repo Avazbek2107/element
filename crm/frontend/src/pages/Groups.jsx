@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { groupsApi, usersApi, roomsApi } from '../services/api'
 import toast from 'react-hot-toast'
+import GroupReportModal from '../components/GroupReportModal'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 const DAY_UZ = {
@@ -55,11 +56,14 @@ function serializeSchedule(sched) {
 const emptySchedule = () => parseSchedule(null)
 
 /* ── Guruh kartasi ── */
-function GroupCard({ g, onEdit, onDelete, rooms }) {
+function GroupCard({ g, onEdit, onDelete, onReport, rooms }) {
   const activeDays = g.schedule ? Object.entries(g.schedule) : []
   const roomName = (rid) => rooms.find(r => r.id === rid)?.name ?? null
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3">
+    <div
+      className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      onClick={() => onReport(g)}
+    >
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold text-gray-800 text-base">{g.name}</h3>
@@ -109,7 +113,7 @@ function GroupCard({ g, onEdit, onDelete, rooms }) {
         </p>
       )}
 
-      <div className="flex gap-3 pt-2 border-t border-gray-100">
+      <div className="flex gap-3 pt-2 border-t border-gray-100" onClick={e => e.stopPropagation()}>
         <button onClick={() => onEdit(g)} className="text-blue-600 text-xs hover:underline font-medium">Tahrirlash</button>
         <button onClick={() => onDelete(g.id)} className="text-red-500 text-xs hover:underline">O'chirish</button>
         {g.telegram_group_link && (
@@ -117,6 +121,13 @@ function GroupCard({ g, onEdit, onDelete, rooms }) {
             Telegram
           </a>
         )}
+        <button onClick={() => onReport(g)} className="flex items-center gap-1 text-indigo-600 text-xs hover:underline ml-auto font-medium">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+          </svg>
+          Hisobot
+        </button>
       </div>
     </div>
   )
@@ -313,10 +324,11 @@ function GroupModal({ group, teachers, rooms, onClose, onSaved }) {
 
 /* ── Asosiy sahifa ── */
 export default function Groups() {
-  const [groups, setGroups]     = useState([])
-  const [teachers, setTeachers] = useState([])
-  const [rooms, setRooms]       = useState([])
-  const [modal, setModal]       = useState(null)
+  const [groups,      setGroups]      = useState([])
+  const [teachers,    setTeachers]    = useState([])
+  const [rooms,       setRooms]       = useState([])
+  const [modal,       setModal]       = useState(null)
+  const [reportGroup, setReportGroup] = useState(null)
 
   const load = () =>
     groupsApi.list().then(({ data }) => setGroups(data)).catch(() => {})
@@ -340,7 +352,7 @@ export default function Groups() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Guruhlar</h1>
         <button
           onClick={() => setModal('create')}
@@ -358,6 +370,7 @@ export default function Groups() {
             rooms={rooms}
             onEdit={(g) => setModal(g)}
             onDelete={handleDelete}
+            onReport={(g) => setReportGroup(g)}
           />
         ))}
         {groups.length === 0 && (
@@ -372,6 +385,13 @@ export default function Groups() {
           rooms={rooms}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); load() }}
+        />
+      )}
+
+      {reportGroup && (
+        <GroupReportModal
+          group={reportGroup}
+          onClose={() => setReportGroup(null)}
         />
       )}
     </div>

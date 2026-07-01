@@ -334,10 +334,10 @@ export default function Materials() {
           )}
         </div>
       ) : (
-        <div className="flex gap-5 min-h-0 flex-1">
+        <div className="flex flex-col lg:flex-row gap-5 min-h-0 flex-1">
 
           {/* ── Chap: modullar ro'yxati ── */}
-          <div className="w-64 shrink-0 flex flex-col gap-2">
+          <div className="w-full lg:w-64 shrink-0 flex flex-col gap-2">
             {modules.map((m, i) => (
               <div
                 key={m.id}
@@ -402,7 +402,7 @@ export default function Materials() {
           </div>
 
           {/* ── O'ng: mavzular ── */}
-          <div className="flex-1 min-w-0 bg-gray-50 rounded-2xl p-5 overflow-y-auto">
+          <div className="flex-1 min-w-0 bg-gray-50 rounded-2xl p-5 overflow-y-auto lg:overflow-y-auto">
             {selected ? (
               <ModulePanel
                 key={selected.id}

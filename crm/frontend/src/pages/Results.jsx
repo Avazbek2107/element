@@ -63,7 +63,7 @@ function StudentResults() {
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white rounded-xl shadow-sm p-4 text-center">
               <p className="text-3xl font-bold text-blue-600">{results.length}</p>
               <p className="text-xs text-gray-400 mt-1">Topshirilgan test</p>
@@ -163,7 +163,7 @@ function AllResults() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         {loading ? (
           <div className="text-center py-12 text-gray-400 text-sm">Yuklanmoqda...</div>
         ) : results.length === 0 ? (

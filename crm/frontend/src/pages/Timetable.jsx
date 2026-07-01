@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { groupsApi, roomsApi } from '../services/api'
+import { groupsApi, roomsApi, attendanceApi } from '../services/api'
 
 /* ── Konstantalar ── */
 const DAY_KEYS  = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -123,21 +123,31 @@ function SessionCard({ s }) {
     return () => document.removeEventListener('mousedown', fn)
   }, [open])
 
+  const bgClass     = s.missed ? 'bg-red-100'    : s.color.bg
+  const borderClass = s.missed ? 'border-red-400' : s.color.border
+  const textClass   = s.missed ? 'text-red-800'  : s.color.text
+
   return (
     <div
       ref={ref}
       onClick={() => setOpen((v) => !v)}
       className={`absolute left-1 right-1 rounded-lg border cursor-pointer select-none
-        hover:brightness-95 transition-all ${s.color.bg} ${s.color.border} ${s.color.text}`}
+        hover:brightness-95 transition-all ${bgClass} ${borderClass} ${textClass}`}
       style={{ top: `${top}px`, height: `${height}px` }}
     >
       <div className="px-2 py-1 h-full overflow-hidden">
-        <p className="text-xs font-semibold leading-tight truncate">{s.name}</p>
+        <div className="flex items-center gap-1">
+          {s.missed && <span className="text-red-500 text-xs">⚠</span>}
+          <p className="text-xs font-semibold leading-tight truncate">{s.name}</p>
+        </div>
         {!short && (
           <p className="text-xs opacity-70 truncate mt-0.5">{formatTime(s.start)}–{formatTime(s.end)}</p>
         )}
         {!short && s.teacher && (
           <p className="text-xs opacity-55 truncate">{s.teacher}</p>
+        )}
+        {!short && s.missed && (
+          <p className="text-xs text-red-600 font-medium truncate">Yo'qlama belgilanmagan!</p>
         )}
       </div>
       {open && <SessionTooltip s={s} onClose={() => setOpen(false)} />}
@@ -152,12 +162,25 @@ export default function Timetable() {
   const [loading,       setLoading]       = useState(true)
   const [weekStart,     setWeekStart]     = useState(() => getMondayOf(new Date()))
   const [selectedGroup, setSelectedGroup] = useState('')
+  const [missedGroups,  setMissedGroups]  = useState(new Set())
 
   useEffect(() => {
     Promise.all([groupsApi.list(), roomsApi.list()])
       .then(([{ data: g }, { data: r }]) => { setGroups(g); setRooms(r) })
       .catch(() => {})
       .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    attendanceApi.notifications()
+      .then(({ data }) => setMissedGroups(new Set(data.map(n => n.group_id))))
+      .catch(() => {})
+    const iv = setInterval(() => {
+      attendanceApi.notifications()
+        .then(({ data }) => setMissedGroups(new Set(data.map(n => n.group_id))))
+        .catch(() => {})
+    }, 60_000)
+    return () => clearInterval(iv)
   }, [])
 
   const roomName = (rid) => rid ? (rooms.find(r => r.id === rid)?.name ?? null) : null
@@ -181,6 +204,13 @@ export default function Timetable() {
       const end   = parseTime(re)
       if (isNaN(start) || isNaN(end) || end <= start) return
       const rid = getRoomId(raw)
+      const now      = new Date()
+      const nowHours = now.getHours() + now.getMinutes() / 60
+      const weekDay  = weekDays[di]
+      const isToday_ = isToday(weekDay)
+      const isPast   = isToday_ && nowHours > end
+      const missed   = isPast && missedGroups.has(g.id)
+
       sessions.push({
         id: `${g.id}-${day}`,
         name: g.name,
@@ -189,6 +219,7 @@ export default function Timetable() {
         start, end, dayIdx: di,
         color: colorOf(gi),
         roomName: roomName(rid),
+        missed,
       })
     })
   })

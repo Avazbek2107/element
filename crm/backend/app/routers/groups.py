@@ -1,12 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 from typing import List, Optional
+from datetime import date, timedelta
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.group import Group
 from app.models.room import Room
 from app.models.student import StudentProfile
+from app.models.attendance import Attendance, AttendanceStatus
+from app.models.test import Test, TestResult
 from app.schemas.group import GroupCreate, GroupUpdate, GroupOut
 from app.utils.auth import get_current_user, require_roles
 
@@ -117,10 +120,13 @@ def _check_room_conflict(
                 )
 
 
-def _build_group_out(group: Group, student_count: int = 0) -> GroupOut:
+def _build_group_out(group: Group, db: Session) -> GroupOut:
     teacher_name = None
     if group.teacher:
         teacher_name = f"{group.teacher.first_name} {group.teacher.last_name}"
+    student_count = db.query(StudentProfile).filter(
+        StudentProfile.group_id == group.id
+    ).count()
     return GroupOut(
         id=group.id,
         name=group.name,
@@ -142,13 +148,7 @@ def list_groups(
     current_user: User = Depends(get_current_user),
 ):
     groups = db.query(Group).filter(Group.is_active == True).all()
-    counts = dict(
-        db.query(StudentProfile.group_id, func.count(StudentProfile.id))
-        .filter(StudentProfile.group_id.isnot(None))
-        .group_by(StudentProfile.group_id)
-        .all()
-    )
-    return [_build_group_out(g, counts.get(g.id, 0)) for g in groups]
+    return [_build_group_out(g, db) for g in groups]
 
 
 @router.post("", response_model=GroupOut, status_code=status.HTTP_201_CREATED)
@@ -163,7 +163,7 @@ def create_group(
     db.add(group)
     db.commit()
     db.refresh(group)
-    return _build_group_out(group, 0)
+    return _build_group_out(group, db)
 
 
 @router.get("/{group_id}", response_model=GroupOut)
@@ -175,8 +175,7 @@ def get_group(
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
-    count = db.query(func.count(StudentProfile.id)).filter(StudentProfile.group_id == group_id).scalar() or 0
-    return _build_group_out(group, count)
+    return _build_group_out(group, db)
 
 
 @router.put("/{group_id}", response_model=GroupOut)
@@ -200,8 +199,7 @@ def update_group(
         setattr(group, key, value)
     db.commit()
     db.refresh(group)
-    count = db.query(func.count(StudentProfile.id)).filter(StudentProfile.group_id == group_id).scalar() or 0
-    return _build_group_out(group, count)
+    return _build_group_out(group, db)
 
 
 @router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -215,6 +213,156 @@ def delete_group(
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
     group.is_active = False
     db.commit()
+
+
+@router.get("/{group_id}/report")
+def get_group_report(
+    group_id: int,
+    date_from: Optional[date] = None,
+    date_to:   Optional[date] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    group = db.query(Group).filter(Group.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Guruh topilmadi")
+
+    # Standart sana: oxirgi 30 kun
+    if not date_to:
+        date_to = date.today()
+    if not date_from:
+        date_from = date_to - timedelta(days=30)
+
+    # ── O'quvchilar ────────────────────────────────────────────
+    students = db.query(StudentProfile).filter(
+        StudentProfile.group_id == group_id
+    ).all()
+    student_ids = [s.id for s in students]
+
+    # ── Yo'qlama (davr ichida) ─────────────────────────────────
+    att_rows = (
+        db.query(Attendance)
+        .filter(
+            Attendance.group_id == group_id,
+            Attendance.date >= date_from,
+            Attendance.date <= date_to,
+        )
+        .all()
+    )
+
+    # Necha ta unikal dars sanasi bor
+    unique_dates = len({a.date for a in att_rows})
+
+    # Har o'quvchi uchun yo'qlama hisob-kitobi
+    att_by_student = {}
+    for s in students:
+        att_by_student[s.id] = {"present": 0, "absent": 0, "late": 0, "excused": 0}
+
+    for a in att_rows:
+        if a.student_id in att_by_student:
+            key = a.status.value if hasattr(a.status, "value") else str(a.status)
+            if key in att_by_student[a.student_id]:
+                att_by_student[a.student_id][key] += 1
+
+    # Umumiy yo'qlama summasi
+    total_present  = sum(v["present"]  for v in att_by_student.values())
+    total_absent   = sum(v["absent"]   for v in att_by_student.values())
+    total_late     = sum(v["late"]     for v in att_by_student.values())
+    total_excused  = sum(v["excused"]  for v in att_by_student.values())
+    total_records  = total_present + total_absent + total_late + total_excused
+    attend_rate    = round(total_present / total_records * 100, 1) if total_records else 0
+
+    # ── Testlar ────────────────────────────────────────────────
+    # Bu guruhga biriktirilgan testlar
+    group_tests = db.query(Test).filter(
+        Test.group_id == group_id,
+        Test.is_published == True,
+    ).all()
+    test_ids = [t.id for t in group_tests]
+
+    # Guruh o'quvchilarining test natijalari
+    results = []
+    if test_ids and student_ids:
+        results = (
+            db.query(TestResult)
+            .filter(
+                TestResult.test_id.in_(test_ids),
+                TestResult.student_id.in_(student_ids),
+                TestResult.status == "submitted",
+            )
+            .all()
+        )
+
+    avg_test_pct = (
+        round(sum(float(r.percentage) for r in results) / len(results), 1)
+        if results else None
+    )
+
+    # Har o'quvchi uchun test ko'rsatkichi
+    test_by_student = {}
+    for s in students:
+        test_by_student[s.id] = {"taken": 0, "avg_pct": None, "_sum": 0}
+    for r in results:
+        if r.student_id in test_by_student:
+            test_by_student[r.student_id]["taken"] += 1
+            test_by_student[r.student_id]["_sum"] += float(r.percentage)
+    for sid, v in test_by_student.items():
+        if v["taken"] > 0:
+            v["avg_pct"] = round(v["_sum"] / v["taken"], 1)
+
+    # ── O'quvchilar ro'yxati ──────────────────────────────────
+    student_list = []
+    for s in students:
+        att  = att_by_student[s.id]
+        tst  = test_by_student[s.id]
+        attended = att["present"] + att["late"]
+        total_att = att["present"] + att["absent"] + att["late"] + att["excused"]
+        student_list.append({
+            "id":           s.id,
+            "name":         f"{s.user.last_name} {s.user.first_name}" if s.user else f"ID:{s.id}",
+            "present":      att["present"],
+            "absent":       att["absent"],
+            "late":         att["late"],
+            "excused":      att["excused"],
+            "attend_rate":  round(attended / total_att * 100, 1) if total_att else None,
+            "tests_taken":  tst["taken"],
+            "avg_test_pct": tst["avg_pct"],
+        })
+
+    # O'rtacha davomat bo'yicha saralash
+    student_list.sort(key=lambda x: (x["absent"], -(x["attend_rate"] or 0)))
+
+    teacher_name = None
+    if group.teacher:
+        teacher_name = f"{group.teacher.first_name} {group.teacher.last_name}"
+
+    return {
+        "group": {
+            "id":           group.id,
+            "name":         group.name,
+            "teacher_name": teacher_name,
+            "start_date":   str(group.start_date) if group.start_date else None,
+            "end_date":     str(group.end_date)   if group.end_date   else None,
+            "schedule":     group.schedule,
+        },
+        "period": {
+            "date_from": str(date_from),
+            "date_to":   str(date_to),
+        },
+        "summary": {
+            "student_count":  len(students),
+            "total_lessons":  unique_dates,
+            "total_present":  total_present,
+            "total_absent":   total_absent,
+            "total_late":     total_late,
+            "total_excused":  total_excused,
+            "attend_rate":    attend_rate,
+            "total_tests":    len(group_tests),
+            "test_submissions": len(results),
+            "avg_test_pct":   avg_test_pct,
+        },
+        "students": student_list,
+    }
 
 
 @router.post("/{group_id}/students/{student_id}", status_code=status.HTTP_200_OK)

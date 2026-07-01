@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
 import csv, io
 from pathlib import Path
 from app.database import get_db
@@ -11,6 +12,24 @@ from app.utils.auth import require_roles, hash_password
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 AdminOnly = require_roles(UserRole.admin)
+
+
+class TeacherCreate(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    username: str
+    password: str
+    phone: Optional[str] = None
+
+
+class TeacherUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    phone: Optional[str] = None
 
 
 def _parse_csv(content: bytes) -> list[dict]:
@@ -102,6 +121,89 @@ async def import_teachers(
         "errors": len(errors),
         "details": {"created": created, "skipped": skipped, "errors": errors},
     }
+
+
+@router.post("/teachers")
+def create_teacher(
+    body: TeacherCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AdminOnly),
+):
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(status_code=400, detail="Bu email allaqachon mavjud")
+    if db.query(User).filter(User.username == body.username).first():
+        raise HTTPException(status_code=400, detail="Bu username band")
+    if body.phone and db.query(User).filter(User.phone == body.phone).first():
+        raise HTTPException(status_code=400, detail="Bu telefon raqami band")
+
+    teacher = User(
+        first_name=body.first_name,
+        last_name=body.last_name,
+        email=body.email,
+        username=body.username,
+        phone=body.phone or None,
+        password_hash=hash_password(body.password),
+        role=UserRole.teacher,
+    )
+    db.add(teacher)
+    db.commit()
+    db.refresh(teacher)
+    return {"id": teacher.id, "first_name": teacher.first_name, "last_name": teacher.last_name,
+            "email": teacher.email, "phone": teacher.phone, "username": teacher.username}
+
+
+@router.put("/teachers/{teacher_id}")
+def update_teacher(
+    teacher_id: int,
+    body: TeacherUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AdminOnly),
+):
+    teacher = db.query(User).filter(User.id == teacher_id, User.role == UserRole.teacher).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="O'qituvchi topilmadi")
+
+    if body.email and body.email != teacher.email:
+        if db.query(User).filter(User.email == body.email).first():
+            raise HTTPException(status_code=400, detail="Bu email allaqachon mavjud")
+        teacher.email = body.email
+
+    if body.username and body.username != teacher.username:
+        if db.query(User).filter(User.username == body.username).first():
+            raise HTTPException(status_code=400, detail="Bu username band")
+        teacher.username = body.username
+
+    if body.phone is not None:
+        if body.phone and body.phone != teacher.phone:
+            if db.query(User).filter(User.phone == body.phone).first():
+                raise HTTPException(status_code=400, detail="Bu telefon raqami band")
+        teacher.phone = body.phone or None
+
+    if body.first_name:
+        teacher.first_name = body.first_name
+    if body.last_name:
+        teacher.last_name = body.last_name
+    if body.password:
+        teacher.password_hash = hash_password(body.password)
+
+    db.commit()
+    db.refresh(teacher)
+    return {"id": teacher.id, "first_name": teacher.first_name, "last_name": teacher.last_name,
+            "email": teacher.email, "phone": teacher.phone, "username": teacher.username}
+
+
+@router.delete("/teachers/{teacher_id}")
+def delete_teacher(
+    teacher_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AdminOnly),
+):
+    teacher = db.query(User).filter(User.id == teacher_id, User.role == UserRole.teacher).first()
+    if not teacher:
+        raise HTTPException(status_code=404, detail="O'qituvchi topilmadi")
+    db.delete(teacher)
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/teachers", response_model=List[dict])

@@ -12,27 +12,32 @@ class AttendanceMarkItem(BaseModel):
 
 
 class AttendanceMark(BaseModel):
-    group_id: int
-    date: date
-    records: List[AttendanceMarkItem]
+    group_id:  int
+    date:      date
+    module_id: Optional[int] = None
+    topic_id:  Optional[int] = None
+    records:   List[AttendanceMarkItem]
 
 
 class AttendanceOut(BaseModel):
-    id: int
-    student_id: int
+    id:           int
+    student_id:   int
     student_name: str
-    group_id: int
-    date: date
-    status: AttendanceStatus
+    group_id:     int
+    date:         date
+    status:       AttendanceStatus
     late_minutes: Optional[int] = None
-    note: Optional[str] = None
+    note:         Optional[str] = None
+    module_id:    Optional[int] = None
+    topic_id:     Optional[int] = None
 
     model_config = {"from_attributes": True}
 
 
 class AttendanceDaySummary(BaseModel):
-    date: date
+    date:    date
     present: int
-    absent: int
-    late: int
-    total: int
+    absent:  int
+    late:    int
+    excused: int
+    total:   int
