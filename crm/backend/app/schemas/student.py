@@ -39,14 +39,6 @@ class StudentUpdate(BaseModel):
     course_end_date: Optional[date] = None
 
 
-class StudentListOut(BaseModel):
-    items: List['StudentOut']
-    total: int
-
-    class Config:
-        from_attributes = True
-
-
 class StudentOut(BaseModel):
     id: int
     user_id: int
@@ -75,3 +67,8 @@ class StudentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class StudentListOut(BaseModel):
+    items: List[StudentOut]
+    total: int

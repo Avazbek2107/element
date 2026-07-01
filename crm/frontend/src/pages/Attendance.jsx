@@ -148,9 +148,9 @@ export default function Attendance() {
     setStudents([])
     setRecords({})
 
-    studentsApi.list({ group_id: selectedGroup })
+    studentsApi.list({ group_id: selectedGroup, limit: 200 })
       .then(function (res) {
-        var stList = res.data
+        var stList = res.data.items || res.data
         setStudents(stList)
 
         var base = {}

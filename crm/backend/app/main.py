@@ -19,6 +19,11 @@ _migrations = [
     "ALTER TABLE student_profiles ADD COLUMN student_link_code VARCHAR(12)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_student_profiles_student_link_code ON student_profiles(student_link_code)",
     "ALTER TABLE tests ADD COLUMN answer_key VARCHAR(500)",
+    # Performance indexes
+    "CREATE INDEX IF NOT EXISTS ix_attendances_group_date ON attendances(group_id, date)",
+    "CREATE INDEX IF NOT EXISTS ix_attendances_student_id ON attendances(student_id)",
+    "CREATE INDEX IF NOT EXISTS ix_student_profiles_group_id ON student_profiles(group_id)",
+    "CREATE INDEX IF NOT EXISTS ix_users_is_active ON users(is_active)",
 ]
 for _sql in _migrations:
     try:

@@ -14,7 +14,8 @@ from app.schemas.test import (
 )
 from app.utils.auth import get_current_user, require_roles
 from app.utils.parser import parse_docx, parse_pdf
-from app.utils.notify import send_telegram_message
+from app.utils.notify import send_telegram_message, send_test_notification
+from app.models.group import Group
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
 
@@ -109,6 +110,10 @@ def create_test(
 
     db.commit()
     db.refresh(test)
+
+    if is_paper and test.group_id:
+        _notify_group_students(db, test)
+
     return test
 
 
@@ -154,6 +159,20 @@ def delete_test(
     db.commit()
 
 
+def _notify_group_students(db, test):
+    if not test.group_id:
+        return
+    group = db.query(Group).filter(Group.id == test.group_id).first()
+    group_name = group.name if group else ""
+    q_count = len(test.answer_key) if test.answer_key else db.query(TestQuestion).filter(TestQuestion.test_id == test.id).count()
+    students = db.query(StudentProfile).filter(
+        StudentProfile.group_id == test.group_id,
+        StudentProfile.student_telegram_id.isnot(None),
+    ).all()
+    for s in students:
+        send_test_notification(s.student_telegram_id, test.id, test.title, group_name, q_count)
+
+
 @router.post("/{test_id}/publish")
 def publish_test(
     test_id: int,
@@ -165,6 +184,7 @@ def publish_test(
         raise HTTPException(status_code=404, detail="Test topilmadi")
     test.is_published = True
     db.commit()
+    _notify_group_students(db, test)
     return {"message": "Test nashr etildi"}
 
 

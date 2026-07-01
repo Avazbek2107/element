@@ -2,14 +2,24 @@ import asyncio
 import logging
 import os
 import re
+from pathlib import Path
 
 import httpx
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+
+# .env fayldan yuklash
+_env_file = Path(__file__).parent.parent / "backend" / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000").strip()
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").strip()
 
 CODE_RE = re.compile(r"^[A-Z0-9]{8}$")
 
@@ -51,9 +61,9 @@ async def try_link(message: Message, code: str):
                 await message.answer(
                     f"✅ Muvaffaqiyatli bog'landingiz! (O'quvchi)\n\n"
                     f"Ism: {name}\n\n"
-                    f"Endi qog'oz testlarni shu bot orqali topshirishingiz mumkin:\n"
-                    f"/javob [test_id] [javoblar]\n"
-                    f"Masalan: /javob 5 ABDCA"
+                    f"Test qo'shilganda sizga xabar keladi va javoblarni topshirishingiz mumkin bo'ladi.\n\n"
+                    f"Yoki qo'lda topshirish uchun:\n"
+                    f"/javob [test_id] [javoblar]"
                 )
         elif resp.status_code == 404:
             await message.answer("❌ Bunday kod topilmadi. Kodni administratordan qaytadan so'rang.")
@@ -75,6 +85,19 @@ async def start_with_code(message: Message, command):
 @dp.message(CommandStart())
 async def start_plain(message: Message):
     await message.answer(WELCOME_TEXT)
+
+
+@dp.callback_query(F.data.startswith("sub_"))
+async def on_submit_button(callback: CallbackQuery):
+    test_id = callback.data.split("_")[1]
+    await callback.message.answer(
+        f"📝 <b>Test #{test_id}</b> uchun javoblaringizni yuboring:\n\n"
+        f"Format: <code>/javob {test_id} JAVOBLAR</code>\n\n"
+        f"Masalan: <code>/javob {test_id} ABDCA</code>\n\n"
+        f"⚠️ Faqat A, B, C, D harflarini kiriting. Faqat <b>bir marta</b> topshirish mumkin!",
+        parse_mode="HTML"
+    )
+    await callback.answer()
 
 
 @dp.message(Command("javob"))
@@ -104,22 +127,25 @@ async def submit_test(message: Message, command):
             )
         if resp.status_code == 200:
             d = resp.json()
+            pct = round(float(d['percentage']))
+            bars = "▓" * round(pct / 100 * 16) + "░" * (16 - round(pct / 100 * 16))
+            grade_emoji = "🏆" if pct >= 90 else "🥇" if pct >= 75 else "🥈" if pct >= 50 else "🥉"
             await message.answer(
-                f"✅ Test tekshirildi!\n\n"
-                f"📋 Test: {d['test_title']}\n"
-                f"✔️ To'g'ri: {d['correct']}/{d['total']}\n"
-                f"📊 Ball: {d['percentage']}%\n"
-                f"🏅 Baho: {d['grade']}"
+                f"✅ <b>Test qabul qilindi!</b>\n\n"
+                f"📋 {d['test_title']}\n"
+                f"━━━━━━━━━━━━━━━━━━\n\n"
+                f"✏️ <b>Natija:</b>  {d['correct']}/{d['total']}\n"
+                f"<code>{bars}</code>  <b>{pct}%</b>\n\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"{grade_emoji} <b>Baho:</b> {d['grade']}",
+                parse_mode="HTML"
             )
         elif resp.status_code == 403:
             await message.answer(
                 "❌ Telegram hisobingiz hali bog'lanmagan.\n"
                 "Avval administratordan o'quvchi kodini oling va shu yerga yuboring."
             )
-        elif resp.status_code == 404:
-            detail = resp.json().get("detail", "")
-            await message.answer(f"❌ {detail}")
-        elif resp.status_code == 400:
+        elif resp.status_code in (404, 400):
             detail = resp.json().get("detail", "")
             await message.answer(f"❌ {detail}")
         else:

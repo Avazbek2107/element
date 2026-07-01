@@ -13,7 +13,9 @@ from app.models.student import StudentProfile
 from datetime import datetime
 from app.models.test import Test, TestQuestion, TestResult, TestStatus
 from app.utils.auth import require_roles
-from app.utils.notify import send_telegram_message
+from app.utils.notify import send_telegram_message, build_test_report
+from app.models.attendance import Attendance, AttendanceStatus
+from datetime import date
 
 router = APIRouter(prefix="/api/telegram", tags=["telegram"])
 
@@ -153,6 +155,16 @@ def submit_test_via_bot(
     if not test:
         raise HTTPException(status_code=404, detail=f"Test #{body.test_id} topilmadi yoki nashr etilmagan.")
 
+    existing = db.query(TestResult).filter(
+        TestResult.test_id == body.test_id,
+        TestResult.student_id == profile.id,
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Siz bu testni allaqachon topshirgansiz. Natija: {existing.correct_count}/{existing.total_questions} ({round(float(existing.percentage))}%)"
+        )
+
     answers = body.answers.strip().upper().replace(" ", "")
 
     if test.answer_key:
@@ -204,11 +216,26 @@ def submit_test_via_bot(
     db.commit()
 
     if profile.parent_telegram_id:
-        send_telegram_message(
-            profile.parent_telegram_id,
-            f"📝 {profile.user.first_name} {profile.user.last_name} \"{test.title}\" testini "
-            f"topshirdi: {correct}/{total} to'g'ri ({percentage}%).",
+        today = date.today()
+        month_start = today.replace(day=1)
+        att_records = db.query(Attendance).filter(
+            Attendance.student_id == profile.id,
+            Attendance.date >= month_start,
+            Attendance.date <= today,
+        ).all()
+        total_lessons = len(att_records)
+        attended = sum(1 for r in att_records if r.status in (AttendanceStatus.present, AttendanceStatus.late))
+
+        report = build_test_report(
+            student_name=f"{profile.user.first_name} {profile.user.last_name}",
+            test_title=test.title,
+            correct=correct,
+            total=total,
+            percentage=percentage,
+            attended=attended if total_lessons > 0 else None,
+            total_lessons=total_lessons if total_lessons > 0 else None,
         )
+        send_telegram_message(profile.parent_telegram_id, report)
 
     return {
         "student_name": f"{profile.user.first_name} {profile.user.last_name}",

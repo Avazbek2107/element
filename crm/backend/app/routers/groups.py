@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -116,13 +117,10 @@ def _check_room_conflict(
                 )
 
 
-def _build_group_out(group: Group, db: Session) -> GroupOut:
+def _build_group_out(group: Group, student_count: int = 0) -> GroupOut:
     teacher_name = None
     if group.teacher:
         teacher_name = f"{group.teacher.first_name} {group.teacher.last_name}"
-    student_count = db.query(StudentProfile).filter(
-        StudentProfile.group_id == group.id
-    ).count()
     return GroupOut(
         id=group.id,
         name=group.name,
@@ -144,7 +142,13 @@ def list_groups(
     current_user: User = Depends(get_current_user),
 ):
     groups = db.query(Group).filter(Group.is_active == True).all()
-    return [_build_group_out(g, db) for g in groups]
+    counts = dict(
+        db.query(StudentProfile.group_id, func.count(StudentProfile.id))
+        .filter(StudentProfile.group_id.isnot(None))
+        .group_by(StudentProfile.group_id)
+        .all()
+    )
+    return [_build_group_out(g, counts.get(g.id, 0)) for g in groups]
 
 
 @router.post("", response_model=GroupOut, status_code=status.HTTP_201_CREATED)
@@ -159,7 +163,7 @@ def create_group(
     db.add(group)
     db.commit()
     db.refresh(group)
-    return _build_group_out(group, db)
+    return _build_group_out(group, 0)
 
 
 @router.get("/{group_id}", response_model=GroupOut)
@@ -171,7 +175,8 @@ def get_group(
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
-    return _build_group_out(group, db)
+    count = db.query(func.count(StudentProfile.id)).filter(StudentProfile.group_id == group_id).scalar() or 0
+    return _build_group_out(group, count)
 
 
 @router.put("/{group_id}", response_model=GroupOut)
@@ -195,7 +200,8 @@ def update_group(
         setattr(group, key, value)
     db.commit()
     db.refresh(group)
-    return _build_group_out(group, db)
+    count = db.query(func.count(StudentProfile.id)).filter(StudentProfile.group_id == group_id).scalar() or 0
+    return _build_group_out(group, count)
 
 
 @router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)

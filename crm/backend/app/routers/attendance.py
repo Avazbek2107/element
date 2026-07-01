@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import date, datetime
@@ -25,7 +25,9 @@ def list_attendance(
     db:        Session        = Depends(get_db),
     current_user: User        = Depends(AdminOrTeacher),
 ):
-    q = db.query(Attendance).filter(Attendance.group_id == group_id)
+    q = db.query(Attendance).options(
+        joinedload(Attendance.student).joinedload(StudentProfile.user)
+    ).filter(Attendance.group_id == group_id)
     if date_from:
         q = q.filter(Attendance.date >= date_from)
     if date_to:
