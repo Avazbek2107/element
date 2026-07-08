@@ -111,7 +111,7 @@ class AnalyzeReportReq(BaseModel):
 @router.post("/analyze-report")
 def analyze_report(
     body: AnalyzeReportReq,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher, module="ai")),
 ):
     client = _client()
     s = body.summary
@@ -184,7 +184,7 @@ class ChatReq(BaseModel):
 def ai_chat(
     body: ChatReq,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher, module="ai")),
 ):
     client = _client()
     today = date.today()

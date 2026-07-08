@@ -125,7 +125,7 @@ def mark_attendance(
 @router.get("/notifications")
 def get_notifications(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher, module="attendance")),
 ):
     today      = date.today()
     now        = datetime.now()

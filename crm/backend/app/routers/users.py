@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
-import csv, io
+import csv, io, secrets
 from pathlib import Path
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -87,7 +87,7 @@ async def import_teachers(
         ln   = row.get("last_name", "").strip()
         email= row.get("email", "").strip()
         uname= row.get("username", "").strip()
-        pwd  = row.get("password", "Teacher@1234")
+        pwd  = row.get("password", "").strip() or secrets.token_urlsafe(12)
         phone= row.get("phone", "").strip() or None
 
         if not fn or not ln or not email or not uname:

@@ -24,8 +24,19 @@ AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="tests")
 GRADES = [(90, "A'lo"), (75, "Yaxshi"), (50, "O'rtacha"), (0, "Yomon")]
 
 
-def _check_test_owner(user: User, test: Test):
-    if user.role == UserRole.teacher and test.teacher_id != user.id:
+def _check_test_owner(user: User, test: Test, db=None):
+    role_value = getattr(user.role, 'value', str(user.role))
+    if role_value == "student":
+        if test.status != TestStatus.active:
+            raise HTTPException(status_code=403, detail="Bu testga kirish ruxsati yo'q")
+        if db and test.group_id:
+            in_group = db.query(StudentProfile).filter(
+                StudentProfile.user_id == user.id,
+                StudentProfile.group_id == test.group_id,
+            ).first()
+            if not in_group:
+                raise HTTPException(status_code=403, detail="Bu testga kirish ruxsati yo'q")
+    elif user.role == UserRole.teacher and test.teacher_id != user.id:
         raise HTTPException(status_code=403, detail="Bu testga kirish ruxsati yo'q")
 
 
@@ -131,7 +142,7 @@ def get_test(
     test = db.query(Test).filter(Test.id == test_id).first()
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
-    _check_test_owner(current_user, test)
+    _check_test_owner(current_user, test, db)
     return test
 
 

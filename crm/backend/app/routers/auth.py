@@ -50,11 +50,17 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh-token", response_model=TokenResponse)
-def refresh_token(body: RefreshRequest):
+def refresh_token(body: RefreshRequest, db: Session = Depends(get_db)):
     payload = decode_token(body.refresh_token)
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=400, detail="Refresh token emas")
-    token_data = {"sub": payload["sub"], "role": payload["role"]}
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token yaroqsiz")
+    user = db.query(User).filter(User.id == int(user_id), User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Foydalanuvchi faol emas yoki topilmadi")
+    token_data = {"sub": str(user.id), "role": user.role}
     return TokenResponse(
         access_token=create_access_token(token_data),
         refresh_token=create_refresh_token(token_data),

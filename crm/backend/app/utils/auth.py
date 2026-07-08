@@ -48,6 +48,8 @@ def get_current_user(
 ):
     from app.models.user import User
     payload = decode_token(credentials.credentials)
+    if payload.get("type") == "refresh":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token ishlatib bo'lmaydi")
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token yaroqsiz")

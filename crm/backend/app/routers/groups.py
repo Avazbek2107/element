@@ -232,7 +232,7 @@ def get_group_report(
     date_from: Optional[date] = None,
     date_to:   Optional[date] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher, module="groups")),
 ):
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import csv, io
+import csv, io, secrets
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.student import StudentProfile
@@ -214,7 +214,7 @@ async def import_students(
         gender = GENDER_MAP.get(_g) or None
         email = row.get("email", "").strip()
         uname = row.get("username", "").strip()
-        pwd   = row.get("password", "").strip() or "Student@1234"
+        pwd   = row.get("password", "").strip() or secrets.token_urlsafe(12)
         phone = row.get("phone", "").strip() or None
         parent_phone = row.get("parent_phone", "").strip() or None
         address = row.get("address", "").strip() or None

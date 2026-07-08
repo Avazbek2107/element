@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Start-Process \"http://localhost:3000\")",
+      "PowerShell(& \"c:\\\\Users\\\\iavaz\\\\Desktop\\\\element\\\\crm\\\\backend\\\\venv312\\\\Scripts\\\\python.exe\" -c \"import openpyxl; print\\('OK'\\)\")",
+      "PowerShell($f = \"c:\\\\Users\\\\iavaz\\\\Desktop\\\\element\\\\crm\\\\backend\\\\teachers_sample.xlsx\"; if \\(Test-Path $f\\) { \"Excel fayl: $\\(\\(Get-Item $f\\).Length / 1KB -as [int]\\) KB\" })"
+    ]
+  }
+}
