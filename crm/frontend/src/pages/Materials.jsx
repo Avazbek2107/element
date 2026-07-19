@@ -253,7 +253,7 @@ function ModulePanel({ mod, canEdit, onTopicChange }) {
 /* ── Asosiy sahifa ── */
 export default function Materials() {
   const { user } = useAuth()
-  const canEdit = user?.role === 'admin' || user?.role === 'teacher'
+  const canEdit = user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'teacher'
 
   const [modules,  setModules]  = useState([])
   const [selected, setSelected] = useState(null)   // selected module obj

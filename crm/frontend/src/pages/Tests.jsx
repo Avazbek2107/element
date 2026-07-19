@@ -21,7 +21,7 @@ export default function Tests() {
   const [showPaper, setShowPaper] = useState(false)
   const [loadingEdit, setLoadingEdit] = useState(null)
 
-  const isTeacher = ['admin', 'teacher'].includes(user?.role)
+  const isTeacher = ['super_admin', 'admin', 'teacher'].includes(user?.role)
 
   const load = () => {
     testsApi.list().then(({ data }) => setTests(data)).catch(() => {})
