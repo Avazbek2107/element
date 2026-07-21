@@ -23,8 +23,8 @@ export default function ImportTestModal({ onClose, onCreated, groups }) {
   async function handleFile(file) {
     if (!file) return
     const ext = file.name.split('.').pop().toLowerCase()
-    if (!['docx', 'pdf'].includes(ext)) {
-      toast.error("Faqat .docx yoki .pdf fayl yuklang")
+    if (!['docx', 'pdf', 'xlsx'].includes(ext)) {
+      toast.error("Faqat .docx, .pdf yoki .xlsx fayl yuklang")
       return
     }
     setParsing(true)
@@ -99,7 +99,7 @@ export default function ImportTestModal({ onClose, onCreated, groups }) {
           {step === 'upload' && (
             <div className="space-y-4">
               <p className="text-sm text-gray-500">
-                Quyidagi formatda Word yoki PDF fayl yuklang:
+                Quyidagi formatda Word, PDF yoki Excel fayl yuklang:
               </p>
               <pre className="text-xs bg-gray-50 rounded-lg p-4 text-gray-600 leading-relaxed">
 {`1. Savol matni?
@@ -113,6 +113,9 @@ Javob: B
 A) ...
 ...`}
               </pre>
+              <p className="text-xs text-gray-400">
+                Excel uchun ustunlar: <code className="bg-gray-50 px-1 rounded">Savol, A, B, C, D, Togri javob, Ball</code>
+              </p>
 
               <div
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
@@ -126,7 +129,7 @@ A) ...
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".docx,.pdf"
+                  accept=".docx,.pdf,.xlsx"
                   className="hidden"
                   onChange={(e) => handleFile(e.target.files[0])}
                 />
@@ -135,7 +138,7 @@ A) ...
                 ) : (
                   <>
                     <p className="text-gray-400 text-sm">Faylni bu yerga tashlang yoki bosing</p>
-                    <p className="text-xs text-gray-300 mt-1">.docx yoki .pdf</p>
+                    <p className="text-xs text-gray-300 mt-1">.docx, .pdf yoki .xlsx</p>
                   </>
                 )}
               </div>

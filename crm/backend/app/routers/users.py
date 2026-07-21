@@ -8,6 +8,7 @@ from pathlib import Path
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.utils.auth import require_roles, hash_password
+from app.utils.audit import log_action
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -146,6 +147,8 @@ def create_teacher(
         role=UserRole.teacher,
     )
     db.add(teacher)
+    db.flush()
+    log_action(db, current_user, "create", "teachers", "teacher", teacher.id, f"{teacher.first_name} {teacher.last_name}")
     db.commit()
     db.refresh(teacher)
     return {"id": teacher.id, "first_name": teacher.first_name, "last_name": teacher.last_name,
@@ -186,6 +189,7 @@ def update_teacher(
     if body.password:
         teacher.password_hash = hash_password(body.password)
 
+    log_action(db, current_user, "update", "teachers", "teacher", teacher.id, f"{teacher.first_name} {teacher.last_name}")
     db.commit()
     db.refresh(teacher)
     return {"id": teacher.id, "first_name": teacher.first_name, "last_name": teacher.last_name,
@@ -201,6 +205,7 @@ def delete_teacher(
     teacher = db.query(User).filter(User.id == teacher_id, User.role == UserRole.teacher).first()
     if not teacher:
         raise HTTPException(status_code=404, detail="O'qituvchi topilmadi")
+    log_action(db, current_user, "delete", "teachers", "teacher", teacher.id, f"{teacher.first_name} {teacher.last_name}")
     db.delete(teacher)
     db.commit()
     return {"ok": True}

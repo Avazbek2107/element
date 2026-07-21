@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { superAdminApi } from '../services/api'
+import { superAdminApi, auditApi } from '../services/api'
 import toast from 'react-hot-toast'
-import { Users, Shield, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { Users, Shield, Plus, Pencil, Trash2, Check, X, History } from 'lucide-react'
 
 const ROLE_LABELS = {
   admin:   { label: 'Admin',       color: 'bg-blue-100 text-blue-700' },
@@ -13,7 +13,126 @@ const ROLE_TABS = [
   { key: 'admin',   label: 'Adminlar' },
   { key: 'teacher', label: "O'qituvchilar" },
   { key: 'student', label: "O'quvchilar" },
+  { key: 'audit',   label: 'Audit log' },
 ]
+
+const ACTION_LABELS = {
+  create:            { label: 'Yaratildi',    color: 'bg-green-100 text-green-700' },
+  update:            { label: 'Yangilandi',   color: 'bg-blue-100 text-blue-700' },
+  delete:            { label: "O'chirildi",   color: 'bg-red-100 text-red-600' },
+  permission_change: { label: 'Ruxsat',       color: 'bg-purple-100 text-purple-700' },
+}
+
+const MODULE_LABELS = {
+  superadmin: 'Super admin', students: "O'quvchilar", teachers: "O'qituvchilar",
+  groups: 'Guruhlar', tests: 'Testlar', payments: "To'lovlar",
+}
+
+function AuditLogPanel() {
+  const [logs,    setLogs]    = useState([])
+  const [total,   setTotal]   = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [moduleF, setModuleF] = useState('')
+  const [actionF, setActionF] = useState('')
+  const [page,    setPage]    = useState(1)
+  const PAGE_SIZE = 30
+
+  const load = () => {
+    setLoading(true)
+    const params = { skip: (page - 1) * PAGE_SIZE, limit: PAGE_SIZE }
+    if (moduleF) params.module = moduleF
+    if (actionF) params.action = actionF
+    auditApi.list(params)
+      .then(({ data }) => { setLogs(data.items); setTotal(data.total) })
+      .catch(() => toast.error("Yuklab bo'lmadi"))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { setPage(1) }, [moduleF, actionF])
+  useEffect(() => { load() }, [page, moduleF, actionF]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fmtDate = (iso) => new Date(iso).toLocaleString('uz-UZ', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap gap-3 items-center">
+        <select value={moduleF} onChange={e => setModuleF(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+          <option value="">Barcha modullar</option>
+          {Object.entries(MODULE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={actionF} onChange={e => setActionF(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+          <option value="">Barcha amallar</option>
+          {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+        </select>
+        <span className="text-xs text-gray-400 ml-auto">{total} ta yozuv</span>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        {loading ? (
+          <p className="text-center text-gray-400 py-16 text-sm">Yuklanmoqda...</p>
+        ) : logs.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-gray-400">
+            <History className="w-12 h-12 text-gray-200 mb-3" />
+            <p className="text-sm">Yozuvlar topilmadi</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vaqt</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Foydalanuvchi</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Amal</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Modul</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Obyekt</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {logs.map(l => {
+                  const a = ACTION_LABELS[l.action] || { label: l.action, color: 'bg-gray-100 text-gray-600' }
+                  return (
+                    <tr key={l.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">{fmtDate(l.created_at)}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-800">{l.user_name || '—'}</div>
+                        {l.role && <div className="text-xs text-gray-400">{ROLE_LABELS[l.role]?.label || l.role}</div>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.color}`}>{a.label}</span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{MODULE_LABELS[l.module] || l.module}</td>
+                      <td className="px-4 py-3 text-gray-700 text-xs">{l.entity_label || (l.entity_id ? `#${l.entity_id}` : '—')}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+            ‹ Oldingi
+          </button>
+          <span className="text-sm text-gray-500">{page} / {totalPages}</span>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40">
+            Keyingi ›
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function PermissionModal({ user, modules, onClose, onSaved }) {
   const [selected, setSelected] = useState(
@@ -230,6 +349,7 @@ export default function SuperAdmin() {
   const [showForm,  setShowForm]  = useState(false)
 
   const load = async () => {
+    if (tab === 'audit') return
     setLoading(true)
     try {
       const [{ data: u }, { data: m }] = await Promise.all([
@@ -272,13 +392,15 @@ export default function SuperAdmin() {
             <p className="text-xs text-gray-400">Super Admin</p>
           </div>
         </div>
-        <button
-          onClick={() => { setFormUser(null); setShowForm(true) }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Yangi
-        </button>
+        {tab !== 'audit' && (
+          <button
+            onClick={() => { setFormUser(null); setShowForm(true) }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Yangi
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -296,8 +418,10 @@ export default function SuperAdmin() {
         ))}
       </div>
 
+      {tab === 'audit' && <AuditLogPanel />}
+
       {/* Users table */}
-      {loading ? (
+      {tab !== 'audit' && (loading ? (
         <p className="text-gray-400 text-sm text-center py-10">Yuklanmoqda...</p>
       ) : users.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
@@ -378,7 +502,7 @@ export default function SuperAdmin() {
             </tbody>
           </table>
         </div>
-      )}
+      ))}
 
       {showForm && (
         <UserFormModal

@@ -42,6 +42,7 @@ export const studentsApi = {
   update: (id, data) => api.put(`/students/${id}`, data),
   delete: (id) => api.delete(`/students/${id}`),
   importFile: (formData) => api.post('/students/import', formData),
+  progress: (id) => api.get(`/students/${id}/progress`),
 }
 
 export const groupsApi = {
@@ -64,6 +65,7 @@ export const testsApi = {
   delete: (id) => api.delete(`/tests/${id}`),
   publish: (id) => api.post(`/tests/${id}/publish`),
   parseFile: (formData) => api.post('/tests/parse-file', formData),
+  export: (id, format) => api.get(`/tests/${id}/export`, { params: { format }, responseType: 'blob' }),
   getQuestions: (id) => api.get(`/tests/${id}/questions`),
   getQuestionsForEdit: (id) => api.get(`/tests/${id}/questions-edit`),
   addQuestion: (id, data) => api.post(`/tests/${id}/questions`, data),
@@ -119,6 +121,7 @@ export const attendanceApi = {
 export const aiApi = {
   generateQuestions: (data)    => api.post('/ai/generate-questions', data),
   analyzeReport:     (data)    => api.post('/ai/analyze-report', data),
+  analyzeStudent:    (data)    => api.post('/ai/analyze-student', data),
   chat:              (data)    => api.post('/ai/chat', data),
 }
 
@@ -134,6 +137,7 @@ export const assessmentsApi = {
 export const paymentsApi = {
   list:    (params)     => api.get('/payments', { params }),
   summary: (params)     => api.get('/payments/summary', { params }),
+  report:  (params)     => api.get('/payments/report', { params }),
   create:  (data)       => api.post('/payments', data),
   bulk:    (data)       => api.post('/payments/bulk', data),
   update:  (id, data)   => api.put(`/payments/${id}`, data),
@@ -147,6 +151,20 @@ export const superAdminApi = {
   setPermissions:  (id, perms)   => api.put(`/superadmin/users/${id}/permissions`, { permissions: perms }),
   deleteUser:      (id)          => api.delete(`/superadmin/users/${id}`),
   getModules:      ()            => api.get('/superadmin/modules'),
+}
+
+export const messagesApi = {
+  inbox:        (params)   => api.get('/messages/inbox', { params }),
+  unreadCount:  ()         => api.get('/messages/unread-count'),
+  markRead:     (id)       => api.put(`/messages/${id}/read`),
+  sendInternal: (data)     => api.post('/messages', data),
+  sendToParent: (data)     => api.post('/messages', data),
+  parentLog:    (studentId)=> api.get('/messages/parent-log', { params: { student_id: studentId } }),
+  recipients:   ()         => api.get('/messages/recipients'),
+}
+
+export const auditApi = {
+  list: (params) => api.get('/audit-logs', { params }),
 }
 
 export const telegramApi = {

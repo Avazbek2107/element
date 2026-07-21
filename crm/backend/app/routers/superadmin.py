@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.auth import UserOut
 from app.utils.auth import require_roles, hash_password
+from app.utils.audit import log_action
 
 router = APIRouter(prefix="/api/superadmin", tags=["superadmin"])
 
@@ -86,6 +87,9 @@ def create_user(
         role=body.role,
     )
     db.add(user)
+    db.flush()
+    log_action(db, _, "create", "superadmin", "user", user.id, f"{user.first_name} {user.last_name}",
+               details={"role": body.role.value})
     db.commit()
     db.refresh(user)
     return user
@@ -119,6 +123,7 @@ def update_user(
     if body.is_active  is not None:
         user.is_active = body.is_active
 
+    log_action(db, _, "update", "superadmin", "user", user.id, f"{user.first_name} {user.last_name}")
     db.commit()
     db.refresh(user)
     return user
@@ -140,6 +145,8 @@ def set_permissions(
     else:
         user.permissions = [m for m in body.permissions if m in ALL_MODULES]
 
+    log_action(db, _, "permission_change", "superadmin", "user", user.id, f"{user.first_name} {user.last_name}",
+               details={"permissions": user.permissions})
     db.commit()
     db.refresh(user)
     return user
@@ -154,6 +161,7 @@ def delete_user(
     user = db.query(User).filter(User.id == user_id, User.role != UserRole.super_admin).first()
     if not user:
         raise HTTPException(404, "Foydalanuvchi topilmadi")
+    log_action(db, _, "delete", "superadmin", "user", user.id, f"{user.first_name} {user.last_name}")
     db.delete(user)
     db.commit()
     return {"ok": True}

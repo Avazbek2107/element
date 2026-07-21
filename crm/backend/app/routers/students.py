@@ -1,18 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
+from datetime import date as date_type, timedelta
 import csv, io, secrets
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.models.student import StudentProfile
 from app.models.group import Group
+from app.models.test import TestResult, TestStatus
+from app.models.attendance import Attendance, AttendanceStatus
 from app.schemas.student import StudentCreate, StudentUpdate, StudentOut, StudentListOut
 from app.utils.auth import get_current_user, require_roles
 from app.utils.auth import hash_password
+from app.utils.audit import log_action
 
 router = APIRouter(prefix="/api/students", tags=["students"])
 
 AdminOrTeacher = require_roles(UserRole.admin, UserRole.teacher, module="students")
+
+GRADES = [(90, "A'lo"), (75, "Yaxshi"), (50, "O'rtacha"), (0, "Yomon")]
+
+
+def _grade(pct: float) -> str:
+    for threshold, label in GRADES:
+        if pct >= threshold:
+            return label
+    return "Yomon"
 
 
 def _build_student_out(profile: StudentProfile) -> StudentOut:
@@ -109,6 +123,8 @@ def create_student(
         course_end_date=body.course_end_date,
     )
     db.add(profile)
+    db.flush()
+    log_action(db, current_user, "create", "students", "student", profile.id, f"{user.first_name} {user.last_name}")
     db.commit()
     db.refresh(profile)
     return _build_student_out(profile)
@@ -131,6 +147,74 @@ def get_student(
     return _build_student_out(profile)
 
 
+@router.get("/{student_id}/progress")
+def get_student_progress(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    profile = db.query(StudentProfile).filter(StudentProfile.id == student_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
+    if current_user.role == UserRole.student:
+        own_profile = db.query(StudentProfile).filter(StudentProfile.user_id == current_user.id).first()
+        if not own_profile or own_profile.id != student_id:
+            raise HTTPException(status_code=403, detail="Ruxsat yo'q")
+
+    # ── Test natijalari tarixi ────────────────────────────────
+    results = (
+        db.query(TestResult)
+        .filter(TestResult.student_id == student_id, TestResult.status == TestStatus.submitted)
+        .order_by(TestResult.submitted_at.asc())
+        .all()
+    )
+    test_history = [
+        {
+            "test_id":      r.test_id,
+            "title":        r.test.title if r.test else "",
+            "test_type":    r.test.test_type.value if r.test and r.test.test_type else None,
+            "percentage":   float(r.percentage),
+            "grade":        _grade(float(r.percentage)),
+            "submitted_at": r.submitted_at,
+        }
+        for r in results
+    ]
+    score_avg = round(sum(t["percentage"] for t in test_history) / len(test_history), 1) if test_history else None
+
+    # ── Yo'qlama (so'nggi 6 oy, oylik) ────────────────────────
+    today = date_type.today()
+    attendance_monthly = []
+    for i in range(5, -1, -1):
+        m_index = today.month - 1 - i
+        y = today.year + (m_index // 12)
+        m = (m_index % 12) + 1
+        att_m = db.query(Attendance).filter(
+            Attendance.student_id == student_id,
+            func.extract('year', Attendance.date) == y,
+            func.extract('month', Attendance.date) == m,
+        )
+        present = att_m.filter(Attendance.status == AttendanceStatus.present).count()
+        late    = att_m.filter(Attendance.status == AttendanceStatus.late).count()
+        total   = att_m.count()
+        attendance_monthly.append({
+            "month": f"{y}-{m:02d}",
+            "rate":  round((present + late) / total * 100, 1) if total else None,
+        })
+
+    overall_att = db.query(Attendance).filter(Attendance.student_id == student_id)
+    overall_present = overall_att.filter(Attendance.status == AttendanceStatus.present).count()
+    overall_late    = overall_att.filter(Attendance.status == AttendanceStatus.late).count()
+    overall_total   = overall_att.count()
+    attendance_rate_overall = round((overall_present + overall_late) / overall_total * 100, 1) if overall_total else None
+
+    return {
+        "test_history":            test_history,
+        "score_avg":                score_avg,
+        "attendance_monthly":       attendance_monthly,
+        "attendance_rate_overall":  attendance_rate_overall,
+    }
+
+
 @router.put("/{student_id}", response_model=StudentOut)
 def update_student(
     student_id: int,
@@ -151,6 +235,7 @@ def update_student(
         else:
             setattr(profile, field, value)
 
+    log_action(db, current_user, "update", "students", "student", profile.id, f"{user.first_name} {user.last_name}")
     db.commit()
     db.refresh(profile)
     return _build_student_out(profile)
@@ -165,6 +250,8 @@ def delete_student(
     profile = db.query(StudentProfile).filter(StudentProfile.id == student_id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="O'quvchi topilmadi")
+    label = f"{profile.user.first_name} {profile.user.last_name}" if profile.user else None
+    log_action(db, current_user, "delete", "students", "student", profile.id, label)
     profile.user.is_active = False
     db.commit()
 

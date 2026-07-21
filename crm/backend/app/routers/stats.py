@@ -133,6 +133,79 @@ def get_stats(
             "keldi": keldi, "kelmadi": kelmadi, "kechikdi": kechikdi,
         })
 
+    # ── Davomat dinamikasi (so'nggi 8 hafta) ─────────────────────
+    attendance_trend = []
+    week_start = today - timedelta(days=today.weekday())  # shu haftaning dushanbasi
+    for i in range(7, -1, -1):
+        w_start = week_start - timedelta(weeks=i)
+        w_end   = w_start + timedelta(days=6)
+        att_w = db.query(Attendance).filter(Attendance.date >= w_start, Attendance.date <= w_end)
+        if teacher_gids is not None:
+            att_w = att_w.filter(Attendance.group_id.in_(teacher_gids))
+        if group_id:
+            att_w = att_w.filter(Attendance.group_id == group_id)
+        w_present = att_w.filter(Attendance.status == AttendanceStatus.present).count()
+        w_late    = att_w.filter(Attendance.status == AttendanceStatus.late).count()
+        w_total   = att_w.count()
+        attendance_trend.append({
+            "week": f"{w_start.strftime('%d.%m')}–{w_end.strftime('%d.%m')}",
+            "rate": round((w_present + w_late) / w_total * 100, 1) if w_total else None,
+        })
+
+    # ── O'zlashtirish dinamikasi (so'nggi 6 oy) ──────────────────
+    month_labels_uz = ["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"]
+    score_trend = []
+    for i in range(5, -1, -1):
+        m_index = today.month - 1 - i
+        y = today.year + (m_index // 12)
+        m = (m_index % 12) + 1
+        res_m = db.query(TestResult).filter(
+            TestResult.status == TestStatus.submitted,
+            func.extract('year', TestResult.submitted_at) == y,
+            func.extract('month', TestResult.submitted_at) == m,
+        )
+        if teacher_gids is not None or group_id:
+            res_m = res_m.join(StudentProfile, TestResult.student_id == StudentProfile.id)
+            if teacher_gids is not None:
+                res_m = res_m.filter(StudentProfile.group_id.in_(teacher_gids))
+            if group_id:
+                res_m = res_m.filter(StudentProfile.group_id == group_id)
+        rows_m = res_m.all()
+        avg_m = round(sum(float(r.percentage) for r in rows_m) / len(rows_m), 1) if rows_m else None
+        score_trend.append({
+            "month": f"{y}-{m:02d}",
+            "label": f"{month_labels_uz[m-1]}",
+            "avg_pct": avg_m,
+            "count": len(rows_m),
+        })
+
+    # ── O'qituvchilar reytingi (faqat admin, guruh filtrsiz) ─────
+    teacher_stats = None
+    if not is_teacher and not group_id:
+        teachers = db.query(User).filter(User.role == UserRole.teacher, User.is_active == True).all()
+        teacher_stats = []
+        for t in teachers:
+            t_gids = [g.id for g in db.query(Group.id).filter(Group.teacher_id == t.id, Group.is_active == True).all()]
+            if not t_gids:
+                continue
+            t_att = db.query(Attendance).filter(Attendance.group_id.in_(t_gids))
+            t_present = t_att.filter(Attendance.status == AttendanceStatus.present).count()
+            t_late    = t_att.filter(Attendance.status == AttendanceStatus.late).count()
+            t_total   = t_att.count()
+            t_res = (
+                db.query(TestResult)
+                .join(StudentProfile, TestResult.student_id == StudentProfile.id)
+                .filter(StudentProfile.group_id.in_(t_gids), TestResult.status == TestStatus.submitted)
+                .all()
+            )
+            teacher_stats.append({
+                "teacher_name":    f"{t.first_name} {t.last_name}",
+                "groups_count":    len(t_gids),
+                "avg_attend_rate": round((t_present + t_late) / t_total * 100, 1) if t_total else None,
+                "avg_test_pct":    round(sum(float(r.percentage) for r in t_res) / len(t_res), 1) if t_res else None,
+            })
+        teacher_stats.sort(key=lambda x: (x["avg_test_pct"] is None, -(x["avg_test_pct"] or 0)))
+
     # ── Test turlari ─────────────────────────────────────────────
     type_labels = {
         TestType.practice: "Amaliyot",
@@ -162,6 +235,9 @@ def get_stats(
         "group_stats":         group_stats,
         "attendance_week":     attendance_week,
         "test_type_stats":     test_type_stats,
+        "attendance_trend":    attendance_trend,
+        "score_trend":         score_trend,
+        "teacher_stats":       teacher_stats,
         "recent_groups": [
             {
                 "id": g.id,

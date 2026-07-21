@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { statsApi, attendanceApi } from '../services/api'
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
+  PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import { Users, GraduationCap, Building2, FileText, BarChart2, ClipboardList, Calendar } from 'lucide-react'
+import { Users, GraduationCap, Building2, FileText, BarChart2, ClipboardList, Calendar, TrendingUp } from 'lucide-react'
 
 /* ── StatCard ── */
 function StatCard({ label, value, sub, color = 'blue', icon }) {
@@ -197,6 +197,8 @@ export default function Dashboard() {
     (d) => d.nashr + d.qoralama > 0
   )
   const groupHasData = stats.group_stats?.some((g) => g.count > 0)
+  const attendTrendHasData = stats.attendance_trend?.some((d) => d.rate !== null)
+  const scoreTrendHasData = stats.score_trend?.some((d) => d.avg_pct !== null)
 
   return (
     <div className="space-y-5">
@@ -400,6 +402,77 @@ export default function Dashboard() {
           )}
         </ChartCard>
       </div>
+
+      {/* ── 4.5 Trend grafiklari ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartCard title="Davomat dinamikasi — so'nggi 8 hafta">
+          {attendTrendHasData ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={stats.attendance_trend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="rate" name="Davomat %" stroke="#22c55e" strokeWidth={2.5}
+                  dot={{ r: 3, fill: '#22c55e' }} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+              <TrendingUp className="w-10 h-10 text-gray-300" />
+              <p className="text-sm mt-3">Hali yetarli yo'qlama ma'lumoti yo'q</p>
+            </div>
+          )}
+        </ChartCard>
+
+        <ChartCard title="O'zlashtirish dinamikasi — so'nggi 6 oy">
+          {scoreTrendHasData ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={stats.score_trend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="avg_pct" name="O'rtacha ball %" stroke="#6366f1" strokeWidth={2.5}
+                  dot={{ r: 3, fill: '#6366f1' }} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+              <TrendingUp className="w-10 h-10 text-gray-300" />
+              <p className="text-sm mt-3">Hali yetarli test natijasi yo'q</p>
+            </div>
+          )}
+        </ChartCard>
+      </div>
+
+      {/* ── 4.6 O'qituvchilar reytingi (admin, guruh filtrsiz) ── */}
+      {stats.teacher_stats?.length > 0 && (
+        <ChartCard title="O'qituvchilar reytingi — o'rtacha test bali">
+          <ResponsiveContainer width="100%" height={Math.max(180, stats.teacher_stats.length * 46)}>
+            <BarChart
+              data={stats.teacher_stats.map(t => ({ ...t, avg_test_pct: t.avg_test_pct ?? 0 }))}
+              layout="vertical"
+              margin={{ top: 0, right: 30, left: 10, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+              <YAxis
+                dataKey="teacher_name"
+                type="category"
+                width={130}
+                tick={{ fontSize: 12, fill: '#374151' }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="avg_test_pct" name="O'rtacha ball" fill="#8b5cf6" radius={[0, 6, 6, 0]} barSize={18}
+                label={{ position: 'right', fontSize: 11, fill: '#6b7280', formatter: (v) => v > 0 ? `${v}%` : '' }}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
 
       {/* ── 5. O'rtacha ball ko'rsatkichi ── */}
       {stats.results_total > 0 && (

@@ -10,8 +10,24 @@ print('PostgreSQL tayyor!')
   sleep 1
 done
 
-echo "Jadvallar yaratilmoqda..."
-python -c "from app.database import Base, engine; Base.metadata.create_all(bind=engine)"
+echo "Sxema holati tekshirilmoqda..."
+NEEDS_STAMP=$(python -c "
+import psycopg2, os
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+cur = conn.cursor()
+cur.execute(\"SELECT to_regclass('public.alembic_version'), to_regclass('public.users')\")
+alembic_tbl, users_tbl = cur.fetchone()
+print('yes' if alembic_tbl is None and users_tbl is not None else 'no')
+conn.close()
+")
+
+if [ "$NEEDS_STAMP" = "yes" ]; then
+  echo "Alembic'dan oldingi baza aniqlandi — joriy holat 'head' deb belgilanmoqda (DDL qayta ishlamaydi)..."
+  alembic stamp head
+fi
+
+echo "Migratsiyalar qo'llanilmoqda..."
+alembic upgrade head
 
 echo "Admin foydalanuvchi tekshirilmoqda..."
 python create_admin.py

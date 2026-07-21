@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { testsApi, groupsApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+import { Download } from 'lucide-react'
 
 import TestForm from './TestForm'
 import TestTake from './TestTake'
@@ -39,6 +40,22 @@ export default function Tests() {
       load()
     } catch {
       toast.error('Xatolik')
+    }
+  }
+
+  const handleExport = async (test, format) => {
+    try {
+      const { data } = await testsApi.export(test.id, format)
+      const url = URL.createObjectURL(new Blob([data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${test.title}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Eksport qilishda xatolik')
     }
   }
 
@@ -103,7 +120,7 @@ export default function Tests() {
               onClick={() => setShowImport(true)}
               className="border border-blue-600 text-blue-600 px-4 py-2 rounded-lg text-sm hover:bg-blue-50"
             >
-              Word/PDF import
+              Fayldan import
             </button>
             <button
               onClick={() => setShowPaper(true)}
@@ -182,6 +199,14 @@ export default function Tests() {
                   >
                     O'qitish rejimi
                   </button>
+                  {!t.answer_key && (
+                    <span className="flex items-center gap-2 text-xs text-gray-400">
+                      <Download className="w-3.5 h-3.5" />
+                      <button onClick={() => handleExport(t, 'xlsx')} className="text-emerald-600 hover:underline">Excel</button>
+                      <span className="text-gray-200">/</span>
+                      <button onClick={() => handleExport(t, 'docx')} className="text-blue-600 hover:underline">Word</button>
+                    </span>
+                  )}
                   <button onClick={() => handleDelete(t.id)} className="text-red-500 text-xs hover:underline">
                     O'chirish
                   </button>

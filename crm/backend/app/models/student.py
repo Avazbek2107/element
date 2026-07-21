@@ -8,7 +8,7 @@ class StudentProfile(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True)
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True)
     birth_date = Column(Date, nullable=True)
     parent_phone = Column(String(20), nullable=True)
     parent_telegram_id = Column(String(50), nullable=True)

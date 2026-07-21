@@ -10,6 +10,7 @@ from app.models.student import StudentProfile
 from app.models.group import Group
 from app.schemas.payment import PaymentCreate, PaymentBulkCreate, PaymentUpdate, PaymentOut, PaymentSummary
 from app.utils.auth import require_roles
+from app.utils.audit import log_action
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
@@ -111,6 +112,84 @@ def payment_summary(
     )
 
 
+MONTHS_UZ = ["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"]
+
+
+@router.get("/report")
+def payment_report(
+    months:   int           = Query(6, ge=1, le=24),
+    group_id: Optional[int] = Query(None),
+    db:       Session       = Depends(get_db),
+    current_user: User      = Depends(AdminOrTeacher),
+):
+    today = date_type.today()
+
+    def _scoped(q):
+        if group_id:
+            _check_group_access(current_user, group_id, db)
+            return q.filter(Payment.group_id == group_id)
+        if current_user.role == UserRole.teacher:
+            ids = _teacher_group_ids(current_user, db)
+            return q.filter(Payment.group_id.in_(ids))
+        return q
+
+    # ── Oylik trend ────────────────────────────────────────────
+    monthly = []
+    for i in range(months - 1, -1, -1):
+        m_index = today.month - 1 - i
+        y = today.year + (m_index // 12)
+        m = (m_index % 12) + 1
+        rows = _scoped(db.query(Payment).filter(Payment.year == y, Payment.month == m)).all()
+        total_amount = sum(float(p.amount) for p in rows)
+        collected    = sum(float(p.paid_amount) for p in rows)
+        monthly.append({
+            "month":           f"{y}-{m:02d}",
+            "label":           f"{MONTHS_UZ[m-1]} {y}",
+            "total_amount":    total_amount,
+            "collected":       collected,
+            "remaining":       total_amount - collected,
+            "collection_rate": round(collected / total_amount * 100, 1) if total_amount else None,
+        })
+
+    # ── Qarzdorlar (joriy + o'tgan davrdagi to'lanmagan yozuvlar) ──
+    from sqlalchemy.orm import joinedload
+    debt_rows = _scoped(
+        db.query(Payment)
+        .options(joinedload(Payment.student).joinedload(StudentProfile.user), joinedload(Payment.group))
+        .filter(Payment.status.in_([PaymentStatus.pending, PaymentStatus.partial]))
+    ).all()
+
+    debtors_map: dict = {}
+    for p in debt_rows:
+        owed = float(p.amount) - float(p.paid_amount)
+        if owed <= 0:
+            continue
+        entry = debtors_map.setdefault(p.student_id, {
+            "student_id":    p.student_id,
+            "student_name":  f"{p.student.user.first_name} {p.student.user.last_name}" if p.student and p.student.user else f"ID:{p.student_id}",
+            "group_name":    p.group.name if p.group else None,
+            "total_owed":    0.0,
+            "unpaid_months": 0,
+        })
+        entry["total_owed"]    += owed
+        entry["unpaid_months"] += 1
+
+    debtors = sorted(debtors_map.values(), key=lambda x: -x["total_owed"])[:20]
+
+    # ── Prognoz (so'nggi 3 oy o'rtachasi) ────────────────────────
+    last3 = monthly[-3:] if len(monthly) >= 3 else monthly
+    forecast_amount = round(sum(m["total_amount"] for m in last3) / len(last3), 0) if last3 else 0
+
+    return {
+        "monthly":  monthly,
+        "debtors":  debtors,
+        "forecast_next_month": {
+            "expected_amount": forecast_amount,
+            "note": "So'nggi 3 oy o'rtacha billing summasiga asoslangan taxminiy prognoz",
+        },
+    }
+
+
 @router.post("", response_model=PaymentOut)
 def create_payment(
     body:         PaymentCreate,
@@ -144,6 +223,10 @@ def create_payment(
         note=body.note,
     )
     db.add(p)
+    db.flush()
+    label = f"{p.student.user.first_name} {p.student.user.last_name}" if p.student and p.student.user else None
+    log_action(db, current_user, "create", "payments", "payment", p.id, label,
+               details={"month": p.month, "year": p.year, "amount": float(p.amount)})
     db.commit()
     db.refresh(p)
     from sqlalchemy.orm import joinedload
@@ -187,6 +270,8 @@ def bulk_create(
         ))
         created += 1
 
+    log_action(db, current_user, "create", "payments", "payment_bulk", body.group_id, None,
+               details={"month": body.month, "year": body.year, "created": created, "skipped": skipped})
     db.commit()
     return {"created": created, "skipped": skipped}
 
@@ -227,6 +312,9 @@ def update_payment(
     if body.note is not None:
         p.note = body.note
 
+    label = f"{p.student.user.first_name} {p.student.user.last_name}" if p.student and p.student.user else None
+    log_action(db, current_user, "update", "payments", "payment", p.id, label,
+               details={"paid_amount": float(p.paid_amount), "status": p.status.value})
     db.commit()
     p = db.query(Payment).options(
         joinedload(Payment.student).joinedload(StudentProfile.user),
@@ -245,6 +333,8 @@ def delete_payment(
     if not p:
         raise HTTPException(404, "To'lov topilmadi")
     _check_group_access(current_user, p.group_id, db)
+    label = f"{p.student.user.first_name} {p.student.user.last_name}" if p.student and p.student.user else None
+    log_action(db, current_user, "delete", "payments", "payment", p.id, label)
     db.delete(p)
     db.commit()
     return {"ok": True}

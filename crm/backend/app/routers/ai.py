@@ -173,7 +173,71 @@ Rasmiy lekin tushunarli tilda yoz. Soxta gap ishlatma."""
     return {"analysis": text}
 
 
-# ── 3. AI Chat ──────────────────────────────────────────────────────
+# ── 3. Talaba progressi tahlili ──────────────────────────────────────
+
+class AnalyzeStudentReq(BaseModel):
+    student_name: str
+    test_history: list
+    attendance_summary: dict
+
+
+@router.post("/analyze-student")
+def analyze_student(
+    body: AnalyzeStudentReq,
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.teacher, module="ai")),
+):
+    client = _client()
+
+    if not body.test_history:
+        tests_text = "Hali test topshirmagan."
+    else:
+        lines = []
+        for t in body.test_history:
+            date_str = (t.get("submitted_at") or "")[:10]
+            lines.append(f"- {date_str} | {t.get('title', '')} ({t.get('test_type', '')}): {t.get('percentage')}%")
+        tests_text = "\n".join(lines)
+
+    a = body.attendance_summary or {}
+    attend_text = (
+        f"Davomat: {a.get('rate', 'ma\'lumot yo\'q')}% "
+        f"(keldi: {a.get('present', 0)}, kelmadi: {a.get('absent', 0)}, kech: {a.get('late', 0)})"
+    )
+
+    prompt = f"""O'quvchi: {body.student_name}
+
+Test natijalari tarixi (eskidan yangiga):
+{tests_text}
+
+{attend_text}
+
+Eslatma: test savollarida mavzu/fan tegi yo'q, shuning uchun faqat test sarlavhasi, turi va ball dinamikasi asosida tahlil qil. O'ylab topilgan mavzu nomlarini ishlatma.
+
+Quyidagi tartibda o'zbek tilida qisqa tahlil yoz:
+
+**Umumiy holat**
+(2 jumla: o'quvchining hozirgi natijasi qanday)
+
+**Kuchli tomonlar**
+(Agar ko'rinib tursa: qaysi test turlarida yoki so'nggi paytda yaxshi natija bor)
+
+**Zaif tomonlar**
+(Agar ko'rinib tursa: pasayish tendensiyasi, past ball olgan testlar, past davomat)
+
+**Tavsiyalar**
+(2-3 ta konkret tavsiya, o'qituvchi/ota-ona uchun)
+
+Ma'lumot kam bo'lsa, shuni ochiq aytib o't. Soxta xulosa chiqarma."""
+
+    text = _call(
+        client,
+        "Siz o'zbek ta'lim markazida o'quvchi progressini tahlil qiluvchi AI assistantsiz. Faqat berilgan raqamlarga asoslanib, aniq va halol tahlil bering.",
+        prompt,
+        max_tokens=700,
+    )
+    return {"analysis": text}
+
+
+# ── 4. AI Chat ──────────────────────────────────────────────────────
 
 class ChatReq(BaseModel):
     message: str

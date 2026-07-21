@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { paymentsApi, groupsApi } from '../services/api'
 import toast from 'react-hot-toast'
-import { Banknote, CheckCircle2, Clock, XCircle, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Banknote, CheckCircle2, Clock, XCircle, Plus, Pencil, Trash2, TrendingUp, AlertTriangle, Wallet } from 'lucide-react'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts'
 
 const MONTHS = [
   'Yanvar','Fevral','Mart','Aprel','May','Iyun',
@@ -199,6 +202,116 @@ function PayModal({ payment, onClose, onDone }) {
   )
 }
 
+/* ── Moliyaviy hisobot tabi ── */
+const ReportTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-100 px-3 py-2 text-xs">
+      <p className="font-semibold text-gray-600 mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color }} className="font-medium">
+          {p.name}: {fmt(p.value)} so'm
+        </p>
+      ))}
+    </div>
+  )
+}
+
+function FinanceReport({ groupId }) {
+  const [report,  setReport]  = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    const params = { months: 6 }
+    if (groupId) params.group_id = groupId
+    paymentsApi.report(params)
+      .then(({ data }) => setReport(data))
+      .catch(() => toast.error("Hisobotni yuklab bo'lmadi"))
+      .finally(() => setLoading(false))
+  }, [groupId])
+
+  if (loading) return <p className="text-center text-gray-400 py-16 text-sm">Yuklanmoqda...</p>
+  if (!report) return <p className="text-center text-gray-400 py-16 text-sm">Ma'lumot yuklashda xato</p>
+
+  const hasMonthlyData = report.monthly.some(m => m.total_amount > 0)
+
+  return (
+    <div className="space-y-5">
+      {/* Oylik daromad trendi */}
+      <div className="bg-white rounded-2xl shadow-sm p-5">
+        <p className="text-sm font-semibold text-gray-700 mb-4">Oylik daromad trendi — so'nggi {report.monthly.length} oy</p>
+        {hasMonthlyData ? (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={report.monthly} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} tickLine={false} axisLine={false}
+                tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+              <Tooltip content={<ReportTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+              <Bar dataKey="total_amount" name="Hisoblangan" fill="#93c5fd" radius={[4,4,0,0]} barSize={26} />
+              <Bar dataKey="collected"    name="Yig'ilgan"    fill="#22c55e" radius={[4,4,0,0]} barSize={26} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+            <TrendingUp className="w-10 h-10 text-gray-300" />
+            <p className="text-sm mt-3">Hali to'lov ma'lumoti yo'q</p>
+          </div>
+        )}
+      </div>
+
+      {/* Prognoz */}
+      <div className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shrink-0">
+          <Wallet className="w-6 h-6" />
+        </div>
+        <div>
+          <p className="text-xs text-gray-400">Kelasi oy uchun prognoz</p>
+          <p className="text-xl font-bold text-gray-800">{fmt(report.forecast_next_month.expected_amount)} so'm</p>
+          <p className="text-xs text-gray-400 mt-0.5">{report.forecast_next_month.note}</p>
+        </div>
+      </div>
+
+      {/* Qarzdorlar */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-500" />
+          <p className="text-sm font-semibold text-gray-700">Qarzdorlar</p>
+          <span className="text-xs text-gray-400">{report.debtors.length} ta</span>
+        </div>
+        {report.debtors.length === 0 ? (
+          <p className="text-center text-gray-400 py-10 text-sm">Qarzdorlar yo'q</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr>
+                  <th className="text-left px-5 py-3">O'quvchi</th>
+                  <th className="text-left px-5 py-3">Guruh</th>
+                  <th className="text-center px-5 py-3">Qarzdor oylar</th>
+                  <th className="text-right px-5 py-3">Qarz summasi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {report.debtors.map(d => (
+                  <tr key={d.student_id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3 font-medium text-gray-800">{d.student_name}</td>
+                    <td className="px-5 py-3 text-gray-500 text-xs">{d.group_name || '—'}</td>
+                    <td className="px-5 py-3 text-center text-gray-600">{d.unpaid_months}</td>
+                    <td className="px-5 py-3 text-right font-mono font-semibold text-red-600">{fmt(d.total_owed)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ── Asosiy sahifa ── */
 export default function Payments() {
   const now = new Date()
@@ -212,6 +325,7 @@ export default function Payments() {
   const [loading,   setLoading]   = useState(false)
   const [showBulk,  setShowBulk]  = useState(false)
   const [payModal,  setPayModal]  = useState(null)
+  const [tab,       setTab]       = useState('list') // 'list' | 'report'
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -265,6 +379,28 @@ export default function Payments() {
         </button>
       </div>
 
+      {/* ── Tablar ── */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        {[
+          { key: 'list',   label: "Ro'yxat" },
+          { key: 'report', label: 'Hisobot' },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              tab === t.key ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'report' && <FinanceReport groupId={groupId || null} />}
+
+      {tab === 'list' && (
+      <>
       {/* ── Filtrlar ── */}
       <div className="bg-white rounded-2xl shadow-sm p-4 flex flex-wrap gap-3 items-center">
         <div className="flex items-center gap-2">
@@ -408,6 +544,8 @@ export default function Payments() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {showBulk && (
         <BulkModal

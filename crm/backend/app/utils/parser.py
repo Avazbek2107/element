@@ -114,3 +114,76 @@ def parse_pdf(file: IO[bytes]) -> list[dict]:
             if t:
                 text_parts.append(t)
     return _parse_text('\n'.join(text_parts))
+
+
+XLSX_HEADERS = ["Savol", "A", "B", "C", "D", "Togri javob", "Ball"]
+
+
+def parse_xlsx(file: IO[bytes]) -> list[dict]:
+    """Excel fayldan savollarni o'qiydi. Ustunlar: Savol, A, B, C, D, Togri javob, Ball."""
+    import openpyxl
+    wb = openpyxl.load_workbook(file)
+    ws = wb.active
+    headers = [str(c.value).strip() if c.value else "" for c in ws[1]]
+    label_map = {
+        "Savol": "question_text", "A": "option_a", "B": "option_b",
+        "C": "option_c", "D": "option_d",
+        "Togri javob": "correct_answer", "To'g'ri javob": "correct_answer",
+        "Ball": "points",
+    }
+    keys = [label_map.get(h, h.lower()) for h in headers]
+
+    questions = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not any(row):
+            continue
+        item = {keys[i]: row[i] for i in range(len(keys)) if i < len(row)}
+        q = {
+            'question_text':  str(item.get('question_text') or '').strip(),
+            'option_a':       str(item.get('option_a') or '').strip(),
+            'option_b':       str(item.get('option_b') or '').strip(),
+            'option_c':       str(item.get('option_c') or '').strip(),
+            'option_d':       str(item.get('option_d') or '').strip(),
+            'correct_answer': str(item.get('correct_answer') or 'A').strip().upper()[:1] or 'A',
+            'points':         int(item.get('points') or 1),
+        }
+        if _is_complete(q):
+            questions.append(q)
+    return questions
+
+
+def build_xlsx(questions: list) -> bytes:
+    """Savollar ro'yxatidan Excel fayl (bytes) yaratadi. parse_xlsx bilan round-trip mos."""
+    import openpyxl
+    import io
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Savollar"
+    ws.append(XLSX_HEADERS)
+    for q in questions:
+        ws.append([
+            q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
+            q.correct_answer, q.points,
+        ])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def build_docx(test_title: str, questions: list) -> bytes:
+    """Savollar ro'yxatidan Word fayl (bytes) yaratadi. parse_docx bilan round-trip mos."""
+    from docx import Document
+    import io
+    doc = Document()
+    doc.add_heading(test_title, level=1)
+    for i, q in enumerate(questions, start=1):
+        doc.add_paragraph(f"{i}. {q.question_text}")
+        doc.add_paragraph(f"A) {q.option_a}")
+        doc.add_paragraph(f"B) {q.option_b}")
+        doc.add_paragraph(f"C) {q.option_c}")
+        doc.add_paragraph(f"D) {q.option_d}")
+        doc.add_paragraph(f"Javob: {q.correct_answer}")
+        doc.add_paragraph("")
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

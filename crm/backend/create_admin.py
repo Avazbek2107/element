@@ -1,28 +1,10 @@
 """
 Birinchi super_admin foydalanuvchini yaratish / yangilash uchun ishga tushiriladi.
+Jadval sxemasi bu vaqtga kelib Alembic orqali (entrypoint.sh) allaqachon tayyor bo'ladi.
 """
-from sqlalchemy import text
-from app.database import SessionLocal, Base, engine
+from app.database import SessionLocal
 from app.models.user import User, UserRole
-from app.models import group, student, attendance, material, room, test
 from app.utils.auth import hash_password
-
-# 1. super_admin enum qiymatini qo'shish (AUTOCOMMIT kerak)
-try:
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as _c:
-        _c.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'super_admin' BEFORE 'admin'"))
-except Exception:
-    pass
-
-# 2. permissions ustunini qo'shish
-try:
-    with engine.connect() as _c:
-        _c.execute(text("ALTER TABLE users ADD COLUMN permissions JSONB"))
-        _c.commit()
-except Exception:
-    pass
-
-Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 

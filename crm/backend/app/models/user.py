@@ -22,7 +22,7 @@ class User(Base):
     role = Column(Enum(UserRole), nullable=False)
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True, index=True)
     permissions = Column(JSON, nullable=True)  # admin uchun ruxsat ro'yxati; null = hammasi
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

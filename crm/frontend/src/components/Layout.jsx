@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useEffect, useRef, useState } from 'react'
-import { attendanceApi } from '../services/api'
+import { attendanceApi, messagesApi } from '../services/api'
 import ElementLogo from './ElementLogo'
 import AiChat from './AiChat'
 import { Bell, Menu, X, ChevronDown } from 'lucide-react'
@@ -19,6 +19,12 @@ const NAV_STRUCTURE = [
     path: '/timetable',
     label: 'Dars jadvali',
     roles: ['super_admin', 'admin', 'teacher', 'student'],
+  },
+  {
+    type: 'link',
+    path: '/messages',
+    label: 'Xabarlar',
+    roles: ['super_admin', 'admin', 'teacher'],
   },
   {
     type: 'section',
@@ -74,6 +80,25 @@ const NAV_STRUCTURE = [
     ],
   },
 ]
+
+/* ── Xabarlar badge ─────────────────────────────────────────────────── */
+function MessagesBadge() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    const load = () => messagesApi.unreadCount().then(({ data }) => setCount(data.count)).catch(() => {})
+    load()
+    const iv = setInterval(load, 60_000)
+    return () => clearInterval(iv)
+  }, [])
+
+  if (count === 0) return null
+  return (
+    <span className="ml-auto w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-bold leading-none shrink-0">
+      {count > 9 ? '9+' : count}
+    </span>
+  )
+}
 
 /* ── Bildirishnomalar qo'ng'irog'i ─────────────────────────────────── */
 function NotificationBell() {
@@ -291,6 +316,7 @@ function SidebarContent({ user, location, onNavClick, onLogout }) {
                 }`}
               >
                 {entry.label}
+                {entry.path === '/messages' && <MessagesBadge />}
               </Link>
             )
           }

@@ -1,51 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import Base, engine
-from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials, ai, telegram, payments, assessments, superadmin
-from app.models import room as _room_model        # noqa: F401 — table auto-create
-from app.models import material as _material_model  # noqa: F401 — table auto-create
-from app.models import payment as _payment_model  # noqa: F401 — table auto-create
-from app.models import assessment as _assessment_model  # noqa: F401 — table auto-create
+from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials, ai, telegram, payments, assessments, superadmin, audit, messages
+import app.models  # noqa: F401 — barcha modellarni ro'yxatdan o'tkazish (Alembic autogenerate uchun ham kerak)
 
-# Jadvallarni yaratish
-Base.metadata.create_all(bind=engine)
-
-_text = __import__("sqlalchemy").text
-_migrations = [
-    "ALTER TABLE attendances ADD COLUMN late_minutes INTEGER",
-    "ALTER TABLE attendances ADD COLUMN module_id INTEGER REFERENCES modules(id) ON DELETE SET NULL",
-    "ALTER TABLE attendances ADD COLUMN topic_id  INTEGER REFERENCES topics(id)  ON DELETE SET NULL",
-    "ALTER TYPE attendancestatus ADD VALUE IF NOT EXISTS 'excused'",
-    "ALTER TABLE student_profiles ADD COLUMN link_code VARCHAR(12)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS ix_student_profiles_link_code ON student_profiles(link_code)",
-    "ALTER TABLE student_profiles ADD COLUMN student_link_code VARCHAR(12)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS ix_student_profiles_student_link_code ON student_profiles(student_link_code)",
-    "ALTER TABLE tests ADD COLUMN answer_key VARCHAR(500)",
-    "CREATE INDEX IF NOT EXISTS ix_payments_month_year ON payments(month, year)",
-    "CREATE INDEX IF NOT EXISTS ix_payments_student_id ON payments(student_id)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS ix_assessments_student_group_date ON assessments(student_id, group_id, date)",
-    # Performance indexes
-    "CREATE INDEX IF NOT EXISTS ix_attendances_group_date ON attendances(group_id, date)",
-    "CREATE INDEX IF NOT EXISTS ix_attendances_student_id ON attendances(student_id)",
-    "CREATE INDEX IF NOT EXISTS ix_student_profiles_group_id ON student_profiles(group_id)",
-    "CREATE INDEX IF NOT EXISTS ix_users_is_active ON users(is_active)",
-    # super_admin roli va permissions ustuni
-    "ALTER TABLE users ADD COLUMN permissions JSONB",
-]
-
-# super_admin enum qiymatini autocommit rejimida qo'shish
-try:
-    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as _ac:
-        _ac.execute(_text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'super_admin' BEFORE 'admin'"))
-except Exception:
-    pass
-for _sql in _migrations:
-    try:
-        with engine.connect() as _conn:
-            _conn.execute(_text(_sql))
-            _conn.commit()
-    except Exception:
-        pass
+# Jadval sxemasi endi Alembic orqali boshqariladi (ishga tushishda entrypoint.sh
+# "alembic upgrade head" ni chaqiradi) — bu yerda create_all/xom SQL migratsiya yo'q.
 
 app = FastAPI(title="O'quv Markazi CRM", version="1.0.0")
 
@@ -77,6 +36,8 @@ app.include_router(telegram.router)
 app.include_router(payments.router)
 app.include_router(assessments.router)
 app.include_router(superadmin.router)
+app.include_router(audit.router)
+app.include_router(messages.router)
 
 
 @app.get("/api/health")
@@ -147,6 +108,70 @@ async def _report_scheduler():
             pass
 
 
+REMINDER_DAYS_BEFORE_MONTH_END = 5
+REMINDER_THROTTLE_DAYS = 3
+
+
+async def _payment_reminder_scheduler():
+    """Har kuni bir marta: oy oxiriga N kun qolganda yoki qarzdorlik bo'lsa ota-onaga eslatma."""
+    import calendar as _calendar
+
+    while True:
+        await _asyncio.sleep(60)
+        try:
+            now = _datetime.now()
+            if not (now.hour == 10 and now.minute == 0):
+                continue
+            today = _date.today()
+
+            from app.database import SessionLocal
+            from app.models.payment import Payment as _Payment, PaymentStatus as _PayStatus
+            from app.models.student import StudentProfile as _SP
+            from app.utils.messaging import deliver_to_parent as _deliver
+
+            db = SessionLocal()
+            try:
+                days_in_month = _calendar.monthrange(today.year, today.month)[1]
+                days_left = days_in_month - today.day
+                due_soon = days_left <= REMINDER_DAYS_BEFORE_MONTH_END
+
+                q = db.query(_Payment).filter(_Payment.status.in_([_PayStatus.pending, _PayStatus.partial]))
+                candidates = []
+                for p in q.all():
+                    is_current_month = (p.year == today.year and p.month == today.month)
+                    is_overdue = (p.year, p.month) < (today.year, today.month)
+                    if not ((is_current_month and due_soon) or is_overdue):
+                        continue
+                    if p.last_reminder_at and (today - p.last_reminder_at).days < REMINDER_THROTTLE_DAYS:
+                        continue
+                    candidates.append(p)
+
+                for p in candidates:
+                    student = db.query(_SP).filter(_SP.id == p.student_id).first()
+                    if not student:
+                        continue
+                    owed = float(p.amount) - float(p.paid_amount)
+                    month_label = f"{p.month:02d}.{p.year}"
+                    text = (
+                        f"💳 <b>To'lov eslatmasi</b>\n\n"
+                        f"{month_label} oyi uchun <b>{owed:,.0f} so'm</b> qarzdorlik mavjud.\n"
+                        f"Iltimos, imkon qadar tez to'lovni amalga oshiring."
+                    )
+                    channel, status = _deliver(student, text)
+                    from app.models.message import Message as _Msg
+                    db.add(_Msg(
+                        sender_id=None, recipient_student_id=student.id,
+                        channel=channel, body=text, status=status,
+                    ))
+                    p.last_reminder_at = today
+                db.commit()
+            finally:
+                db.close()
+        except Exception:
+            pass
+
+
 @app.on_event("startup")
 async def _start_scheduler():
     _asyncio.create_task(_report_scheduler())
+    _asyncio.create_task(_payment_reminder_scheduler())

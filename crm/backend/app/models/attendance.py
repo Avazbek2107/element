@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Enum, func
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Enum, Index, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
@@ -13,9 +13,12 @@ class AttendanceStatus(str, enum.Enum):
 
 class Attendance(Base):
     __tablename__ = "attendances"
+    __table_args__ = (
+        Index("ix_attendances_group_date", "group_id", "date"),
+    )
 
     id           = Column(Integer, primary_key=True, index=True)
-    student_id   = Column(Integer, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False)
+    student_id   = Column(Integer, ForeignKey("student_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     group_id     = Column(Integer, ForeignKey("groups.id",           ondelete="CASCADE"), nullable=False)
     date         = Column(Date, nullable=False)
     status       = Column(Enum(AttendanceStatus, name="attendancestatus"), nullable=False, default=AttendanceStatus.present)

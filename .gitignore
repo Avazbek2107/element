@@ -20,6 +20,14 @@ env/
 *.sqlite
 *.sqlite3
 
+# Test artefaktlari
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ma'lumotlar bazasi zaxira nusxalari — shaxsiy ma'lumotlarni o'z ichiga oladi, git'ga tushmasin
+backups/
+
 # Environment files
 .env
 .env.local

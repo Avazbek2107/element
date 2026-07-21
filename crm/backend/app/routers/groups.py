@@ -12,6 +12,7 @@ from app.models.attendance import Attendance, AttendanceStatus
 from app.models.test import Test, TestResult
 from app.schemas.group import GroupCreate, GroupUpdate, GroupOut
 from app.utils.auth import get_current_user, require_roles
+from app.utils.audit import log_action
 
 router = APIRouter(prefix="/api/groups", tags=["groups"])
 
@@ -171,6 +172,8 @@ def create_group(
     _check_room_conflict(db, body.schedule)
     group = Group(**body.model_dump())
     db.add(group)
+    db.flush()
+    log_action(db, current_user, "create", "groups", "group", group.id, group.name)
     db.commit()
     db.refresh(group)
     return _build_group_out(group, db)
@@ -208,6 +211,7 @@ def update_group(
 
     for key, value in body.model_dump(exclude_none=True).items():
         setattr(group, key, value)
+    log_action(db, current_user, "update", "groups", "group", group.id, group.name)
     db.commit()
     db.refresh(group)
     return _build_group_out(group, db)
@@ -222,6 +226,7 @@ def delete_group(
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=404, detail="Guruh topilmadi")
+    log_action(db, current_user, "delete", "groups", "group", group.id, group.name)
     group.is_active = False
     db.commit()
 

@@ -13,8 +13,9 @@ from app.schemas.test import (
     TestSubmit, TestResultOut,
 )
 from app.utils.auth import get_current_user, require_roles
-from app.utils.parser import parse_docx, parse_pdf
+from app.utils.parser import parse_docx, parse_pdf, parse_xlsx, build_xlsx, build_docx
 from app.utils.notify import send_telegram_message, send_test_notification
+from app.utils.audit import log_action
 from app.models.group import Group
 
 router = APIRouter(prefix="/api/tests", tags=["tests"])
@@ -124,6 +125,7 @@ def create_test(
         )
         db.add(question)
 
+    log_action(db, current_user, "create", "tests", "test", test.id, test.title)
     db.commit()
     db.refresh(test)
 
@@ -159,6 +161,7 @@ def update_test(
     _check_test_owner(current_user, test)
     for key, value in body.model_dump(exclude_none=True).items():
         setattr(test, key, value)
+    log_action(db, current_user, "update", "tests", "test", test.id, test.title)
     db.commit()
     db.refresh(test)
     return test
@@ -174,6 +177,7 @@ def delete_test(
     if not test:
         raise HTTPException(status_code=404, detail="Test topilmadi")
     _check_test_owner(current_user, test)
+    log_action(db, current_user, "delete", "tests", "test", test.id, test.title)
     db.delete(test)
     db.commit()
 
@@ -203,6 +207,7 @@ def publish_test(
         raise HTTPException(status_code=404, detail="Test topilmadi")
     _check_test_owner(current_user, test)
     test.is_published = True
+    log_action(db, current_user, "update", "tests", "test", test.id, test.title, details={"action": "publish"})
     db.commit()
     _notify_group_students(db, test)
     return {"message": "Test nashr etildi"}
@@ -433,6 +438,7 @@ def update_test_full(
             question_order=q.question_order or i + 1,
         ))
 
+    log_action(db, current_user, "update", "tests", "test", test.id, test.title, details={"action": "full_update"})
     db.commit()
     db.refresh(test)
     return test
@@ -444,8 +450,8 @@ async def parse_file(
     current_user: User = Depends(AdminOrTeacher),
 ):
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
-    if ext not in ("docx", "pdf"):
-        raise HTTPException(status_code=400, detail="Faqat .docx yoki .pdf fayl yuklang")
+    if ext not in ("docx", "pdf", "xlsx"):
+        raise HTTPException(status_code=400, detail="Faqat .docx, .pdf yoki .xlsx fayl yuklang")
 
     content = await file.read()
     buf = io.BytesIO(content)
@@ -453,6 +459,8 @@ async def parse_file(
     try:
         if ext == "docx":
             questions = parse_docx(buf)
+        elif ext == "xlsx":
+            questions = parse_xlsx(buf)
         else:
             questions = parse_pdf(buf)
     except Exception as e:
@@ -465,3 +473,46 @@ async def parse_file(
         )
 
     return {"questions": questions, "total": len(questions)}
+
+
+@router.get("/{test_id}/export")
+def export_test(
+    test_id: int,
+    format: str = "xlsx",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(AdminOrTeacher),
+):
+    from fastapi.responses import StreamingResponse
+
+    if format not in ("xlsx", "docx"):
+        raise HTTPException(status_code=400, detail="format faqat xlsx yoki docx bo'lishi mumkin")
+
+    test = db.query(Test).filter(Test.id == test_id).first()
+    if not test:
+        raise HTTPException(status_code=404, detail="Test topilmadi")
+    _check_test_owner(current_user, test)
+
+    questions = db.query(TestQuestion).filter(
+        TestQuestion.test_id == test_id
+    ).order_by(TestQuestion.question_order).all()
+    if not questions:
+        raise HTTPException(status_code=400, detail="Bu testda savollar yo'q")
+
+    if format == "xlsx":
+        data = build_xlsx(questions)
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        filename = f"{test.title}.xlsx"
+    else:
+        data = build_docx(test.title, questions)
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        filename = f"{test.title}.docx"
+
+    from urllib.parse import quote
+    ascii_fallback = f"test-{test_id}.{format}"
+    disposition = f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(filename)}"
+
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type=media_type,
+        headers={"Content-Disposition": disposition},
+    )

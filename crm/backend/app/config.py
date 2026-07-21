@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_USERNAME: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     ALLOWED_ORIGINS: Optional[str] = None
+    ESKIZ_EMAIL: Optional[str] = None
+    ESKIZ_PASSWORD: Optional[str] = None
 
     class Config:
         env_file = ".env"
