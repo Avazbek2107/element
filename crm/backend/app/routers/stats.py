@@ -108,11 +108,16 @@ def get_stats(
         grp_q = grp_q.filter(Group.id.in_(teacher_gids))
     all_groups = grp_q.order_by(Group.name).all()
 
+    # Har bir guruh uchun alohida so'rov o'rniga — bitta GROUP BY so'rov bilan hammasini olamiz
+    counts_by_group = dict(
+        db.query(StudentProfile.group_id, func.count(StudentProfile.id))
+        .filter(StudentProfile.group_id.in_([g.id for g in all_groups]))
+        .group_by(StudentProfile.group_id)
+        .all()
+    ) if all_groups else {}
+
     group_stats = sorted(
-        [
-            {"name": g.name, "count": db.query(StudentProfile).filter(StudentProfile.group_id == g.id).count()}
-            for g in all_groups
-        ],
+        [{"name": g.name, "count": counts_by_group.get(g.id, 0)} for g in all_groups],
         key=lambda x: x["count"],
         reverse=True,
     )
@@ -239,11 +244,7 @@ def get_stats(
         "score_trend":         score_trend,
         "teacher_stats":       teacher_stats,
         "recent_groups": [
-            {
-                "id": g.id,
-                "name": g.name,
-                "student_count": db.query(StudentProfile).filter(StudentProfile.group_id == g.id).count(),
-            }
+            {"id": g.id, "name": g.name, "student_count": counts_by_group.get(g.id, 0)}
             for g in all_groups
         ],
     }

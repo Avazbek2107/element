@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from pydantic import BaseModel
 from app.database import get_db
@@ -60,6 +60,7 @@ def my_results(
         return []
     results = (
         db.query(TestResult)
+        .options(joinedload(TestResult.test))
         .filter(TestResult.student_id == profile.id, TestResult.status == TestStatus.submitted)
         .order_by(TestResult.submitted_at.desc())
         .all()
@@ -79,5 +80,10 @@ def all_results(
     if test_id:
         q = q.filter(TestResult.test_id == test_id)
     total = q.count()
-    results = q.order_by(TestResult.submitted_at.desc()).offset(skip).limit(limit).all()
+    results = (
+        q.options(joinedload(TestResult.test), joinedload(TestResult.student).joinedload(StudentProfile.user))
+        .order_by(TestResult.submitted_at.desc())
+        .offset(skip).limit(limit)
+        .all()
+    )
     return {"items": [_build(r) for r in results], "total": total}

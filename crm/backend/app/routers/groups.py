@@ -128,13 +128,14 @@ def _check_group_access(user: User, group_id: int, db: Session):
             raise HTTPException(status_code=403, detail="Bu guruhga kirish ruxsati yo'q")
 
 
-def _build_group_out(group: Group, db: Session) -> GroupOut:
+def _build_group_out(group: Group, db: Session, student_count: Optional[int] = None) -> GroupOut:
     teacher_name = None
     if group.teacher:
         teacher_name = f"{group.teacher.first_name} {group.teacher.last_name}"
-    student_count = db.query(StudentProfile).filter(
-        StudentProfile.group_id == group.id
-    ).count()
+    if student_count is None:
+        student_count = db.query(StudentProfile).filter(
+            StudentProfile.group_id == group.id
+        ).count()
     return GroupOut(
         id=group.id,
         name=group.name,
@@ -155,11 +156,21 @@ def list_groups(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Group).filter(Group.is_active == True)
+    from sqlalchemy.orm import joinedload
+
+    q = db.query(Group).options(joinedload(Group.teacher)).filter(Group.is_active == True)
     if current_user.role == UserRole.teacher:
         q = q.filter(Group.teacher_id == current_user.id)
     groups = q.all()
-    return [_build_group_out(g, db) for g in groups]
+
+    counts_by_group = dict(
+        db.query(StudentProfile.group_id, func.count(StudentProfile.id))
+        .filter(StudentProfile.group_id.in_([g.id for g in groups]))
+        .group_by(StudentProfile.group_id)
+        .all()
+    ) if groups else {}
+
+    return [_build_group_out(g, db, student_count=counts_by_group.get(g.id, 0)) for g in groups]
 
 
 @router.post("", response_model=GroupOut, status_code=status.HTTP_201_CREATED)

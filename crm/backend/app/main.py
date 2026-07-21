@@ -1,5 +1,7 @@
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials, ai, telegram, payments, assessments, superadmin, audit, messages
 import app.models  # noqa: F401 — barcha modellarni ro'yxatdan o'tkazish (Alembic autogenerate uchun ham kerak)
 from app.config import settings
@@ -25,6 +27,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    """Pydantic validatsiya xatolarini ham qolgan API bilan bir xil
+    {"detail": "matn"} shakliga keltiradi (standart holatda {"detail": [...]} massiv bo'ladi)."""
+    first = exc.errors()[0]
+    loc = ".".join(str(p) for p in first["loc"] if p != "body")
+    message = f"{loc}: {first['msg']}" if loc else first["msg"]
+    return JSONResponse(status_code=422, content={"detail": message})
+
 
 app.include_router(auth.router)
 app.include_router(students.router)
@@ -151,8 +163,14 @@ async def _payment_reminder_scheduler():
                         continue
                     candidates.append(p)
 
+                students_by_id = {
+                    s.id: s for s in db.query(_SP).filter(
+                        _SP.id.in_({p.student_id for p in candidates})
+                    ).all()
+                } if candidates else {}
+
                 for p in candidates:
-                    student = db.query(_SP).filter(_SP.id == p.student_id).first()
+                    student = students_by_id.get(p.student_id)
                     if not student:
                         continue
                     owed = float(p.amount) - float(p.paid_amount)
