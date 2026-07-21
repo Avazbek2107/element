@@ -19,6 +19,7 @@ const Payments    = lazy(() => import('./pages/Payments'))
 const Assessments = lazy(() => import('./pages/Assessments'))
 const SuperAdmin  = lazy(() => import('./pages/SuperAdmin'))
 const Messages    = lazy(() => import('./pages/Messages'))
+const Security    = lazy(() => import('./pages/Security'))
 
 function PageLoader() {
   return (
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="/assessments"  element={<PrivateRoute><Assessments /></PrivateRoute>} />
             <Route path="/super-admin"  element={<PrivateRoute><SuperAdmin  /></PrivateRoute>} />
             <Route path="/messages"     element={<PrivateRoute><Messages   /></PrivateRoute>} />
+            <Route path="/security"     element={<PrivateRoute><Security   /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

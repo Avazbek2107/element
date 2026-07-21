@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { superAdminApi, auditApi } from '../services/api'
+import { superAdminApi, auditApi, twoFaApi } from '../services/api'
 import toast from 'react-hot-toast'
-import { Users, Shield, Plus, Pencil, Trash2, Check, X, History } from 'lucide-react'
+import { Users, Shield, ShieldOff, Plus, Pencil, Trash2, Check, X, History } from 'lucide-react'
 
 const ROLE_LABELS = {
   admin:   { label: 'Admin',       color: 'bg-blue-100 text-blue-700' },
@@ -378,6 +378,17 @@ export default function SuperAdmin() {
     }
   }
 
+  const handleReset2fa = async (u) => {
+    if (!confirm(`${u.first_name} ${u.last_name} uchun 2FA'ni majburan o'chirasizmi? (qurilma yo'qolgan holatlar uchun)`)) return
+    try {
+      await twoFaApi.reset(u.id)
+      toast.success("2FA o'chirildi")
+      load()
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Xatolik')
+    }
+  }
+
   const roleInfo = ROLE_LABELS[tab] || {}
 
   return (
@@ -439,6 +450,9 @@ export default function SuperAdmin() {
                 {tab === 'admin' && (
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Ruxsatlar</th>
                 )}
+                {tab === 'admin' && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">2FA</th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Holat</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Amal</th>
               </tr>
@@ -463,6 +477,15 @@ export default function SuperAdmin() {
                       )}
                     </td>
                   )}
+                  {tab === 'admin' && (
+                    <td className="px-4 py-3">
+                      {u.totp_enabled ? (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Yoqilgan</span>
+                      ) : (
+                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">O'chirilgan</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -479,6 +502,15 @@ export default function SuperAdmin() {
                           title="Ruxsatlar"
                         >
                           <Shield className="w-4 h-4" />
+                        </button>
+                      )}
+                      {tab === 'admin' && u.totp_enabled && (
+                        <button
+                          onClick={() => handleReset2fa(u)}
+                          className="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="2FA'ni tiklash"
+                        >
+                          <ShieldOff className="w-4 h-4" />
                         </button>
                       )}
                       <button

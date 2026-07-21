@@ -32,8 +32,17 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
+  verify2fa: (data) => api.post('/auth/login/2fa-verify', data),
   logout: () => api.post('/auth/logout'),
   me: () => api.get('/auth/me'),
+}
+
+export const twoFaApi = {
+  status:  ()       => api.get('/2fa/status'),
+  setup:   ()       => api.post('/2fa/setup'),
+  confirm: (code)   => api.post('/2fa/confirm', { code }),
+  disable: (code)   => api.post('/2fa/disable', { code }),
+  reset:   (userId) => api.post(`/2fa/reset/${userId}`),
 }
 
 export const studentsApi = {

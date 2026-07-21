@@ -43,6 +43,21 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token yaroqsiz")
 
 
+def create_2fa_pending_token(user_id: int) -> str:
+    """Parol to'g'ri, lekin 2FA kodi hali tasdiqlanmagan holat uchun — API'ga kirish huquqi bermaydi."""
+    return jwt.encode(
+        {"sub": str(user_id), "type": "2fa_pending", "exp": datetime.utcnow() + timedelta(minutes=5)},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM,
+    )
+
+
+def decode_2fa_pending_token(token: str) -> int:
+    payload = decode_token(token)
+    if payload.get("type") != "2fa_pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token yaroqsiz")
+    return int(payload["sub"])
+
+
 def set_auth_cookies(response, access_token: str, refresh_token: str):
     response.set_cookie(
         key=ACCESS_COOKIE_NAME, value=access_token,

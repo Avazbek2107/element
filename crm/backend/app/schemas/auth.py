@@ -26,6 +26,7 @@ class UserOut(BaseModel):
     role: UserRole
     is_active: bool
     permissions: list[str] | None = None
+    totp_enabled: bool = False
 
     class Config:
         from_attributes = True

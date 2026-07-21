@@ -17,7 +17,14 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = async (username, password) => {
-    const { data: me } = await authApi.login({ username, password })
+    const { data } = await authApi.login({ username, password })
+    if (data.requires_2fa) return data  // { requires_2fa: true, temp_token }
+    setUser(data)
+    return data
+  }
+
+  const verify2fa = async (tempToken, code) => {
+    const { data: me } = await authApi.verify2fa({ temp_token: tempToken, code })
     setUser(me)
     return me
   }
@@ -38,7 +45,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ user, loading, login, verify2fa, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   )

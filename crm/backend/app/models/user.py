@@ -24,5 +24,8 @@ class User(Base):
     last_name = Column(String(50), nullable=False)
     is_active = Column(Boolean, default=True, index=True)
     permissions = Column(JSON, nullable=True)  # admin uchun ruxsat ro'yxati; null = hammasi
+    totp_secret = Column(String(32), nullable=True)
+    totp_enabled = Column(Boolean, default=False, nullable=False)
+    totp_backup_codes = Column(JSON, nullable=True)  # bcrypt-xeshlangan zaxira kodlar ro'yxati
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

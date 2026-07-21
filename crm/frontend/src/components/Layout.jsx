@@ -77,6 +77,7 @@ const NAV_STRUCTURE = [
     label: 'Boshqaruv',
     items: [
       { path: '/super-admin', label: 'Boshqaruv', roles: ['super_admin'] },
+      { path: '/security',    label: 'Xavfsizlik', roles: ['super_admin', 'admin'] },
     ],
   },
 ]

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials, ai, telegram, payments, assessments, superadmin, audit, messages
+from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials, ai, telegram, payments, assessments, superadmin, audit, messages, twofa
 import app.models  # noqa: F401 — barcha modellarni ro'yxatdan o'tkazish (Alembic autogenerate uchun ham kerak)
 from app.config import settings
 
@@ -55,6 +55,7 @@ app.include_router(assessments.router)
 app.include_router(superadmin.router)
 app.include_router(audit.router)
 app.include_router(messages.router)
+app.include_router(twofa.router)
 
 
 @app.get("/api/health")
