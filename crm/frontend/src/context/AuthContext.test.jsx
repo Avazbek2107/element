@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './AuthContext'
 vi.mock('../services/api', () => ({
   authApi: {
     login: vi.fn(),
+    logout: vi.fn(),
     me: vi.fn(),
   },
 }))
@@ -26,50 +27,56 @@ function Probe() {
 
 describe('AuthContext', () => {
   beforeEach(() => {
-    localStorage.clear()
     vi.clearAllMocks()
   })
 
-  it('token bo\'lmasa loading darhol false bo\'ladi va user null qoladi', async () => {
+  it('cookie/sessiya bo\'lmasa /me 401 qaytaradi va user null qoladi', async () => {
+    authApi.me.mockRejectedValue({ response: { status: 401 } })
     render(<AuthProvider><Probe /></AuthProvider>)
     expect(await screen.findByTestId('loading')).toHaveTextContent('false')
     expect(screen.getByTestId('user')).toHaveTextContent('none')
   })
 
-  it('login() tokenlarni saqlaydi va userni o\'rnatadi', async () => {
-    authApi.login.mockResolvedValue({ data: { access_token: 'a1', refresh_token: 'r1' } })
-    authApi.me.mockResolvedValue({ data: { id: 1, username: 'admin', role: 'super_admin' } })
+  it('mount bo\'lganda har doim /me chaqiriladi (cookie JS\'dan ko\'rinmasa ham)', async () => {
+    authApi.me.mockResolvedValue({ data: { id: 1, username: 'mavjud', role: 'teacher' } })
+    render(<AuthProvider><Probe /></AuthProvider>)
+    expect(await screen.findByTestId('user')).toHaveTextContent('mavjud')
+    expect(authApi.me).toHaveBeenCalledTimes(1)
+  })
+
+  it('login() javobidagi userni to\'g\'ridan-to\'g\'ri state\'ga qo\'yadi (tokenlarsiz)', async () => {
+    authApi.me.mockRejectedValue({ response: { status: 401 } })
+    authApi.login.mockResolvedValue({ data: { id: 1, username: 'admin', role: 'super_admin' } })
 
     render(<AuthProvider><Probe /></AuthProvider>)
+    await screen.findByTestId('user')
     await act(async () => { screen.getByText('login').click() })
 
-    expect(localStorage.getItem('access_token')).toBe('a1')
-    expect(localStorage.getItem('refresh_token')).toBe('r1')
     expect(screen.getByTestId('user')).toHaveTextContent('admin')
   })
 
-  it('logout() localStorage va userni tozalaydi', async () => {
-    authApi.login.mockResolvedValue({ data: { access_token: 'a1', refresh_token: 'r1' } })
-    authApi.me.mockResolvedValue({ data: { id: 1, username: 'admin', role: 'super_admin' } })
+  it('logout() backend chaqiradi va userni tozalaydi', async () => {
+    authApi.me.mockRejectedValue({ response: { status: 401 } })
+    authApi.login.mockResolvedValue({ data: { id: 1, username: 'admin', role: 'super_admin' } })
+    authApi.logout.mockResolvedValue({})
 
     render(<AuthProvider><Probe /></AuthProvider>)
+    await screen.findByTestId('user')
     await act(async () => { screen.getByText('login').click() })
     await act(async () => { screen.getByText('logout').click() })
 
-    expect(localStorage.getItem('access_token')).toBeNull()
+    expect(authApi.logout).toHaveBeenCalled()
     expect(screen.getByTestId('user')).toHaveTextContent('none')
   })
 })
 
 describe('hasPermission', () => {
   beforeEach(() => {
-    localStorage.clear()
     vi.clearAllMocks()
   })
 
   const setup = async (userData) => {
     authApi.me.mockResolvedValue({ data: userData })
-    localStorage.setItem('access_token', 'existing')
     render(<AuthProvider><Probe /></AuthProvider>)
     await screen.findByTestId('user')
   }

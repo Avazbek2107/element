@@ -1,29 +1,29 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api' })
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
+// Token'lar endi httpOnly cookie'da saqlanadi (JS o'qiy olmaydi) — brauzer
+// har so'rovga ularni avtomatik qo'shadi, shuning uchun withCredentials shart.
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+  withCredentials: true,
 })
+
+let refreshing = null
 
 api.interceptors.response.use(
   (r) => r,
   async (error) => {
-    if (error.response?.status === 401) {
-      const refresh = localStorage.getItem('refresh_token')
-      if (refresh) {
-        try {
-          const { data } = await axios.post('/api/auth/refresh-token', { refresh_token: refresh })
-          localStorage.setItem('access_token', data.access_token)
-          localStorage.setItem('refresh_token', data.refresh_token)
-          error.config.headers.Authorization = `Bearer ${data.access_token}`
-          return api(error.config)
-        } catch {
-          localStorage.clear()
-          window.location.href = '/login'
-        }
+    const original = error.config
+    const isAuthEndpoint = original?.url?.includes('/auth/login') || original?.url?.includes('/auth/refresh-token')
+    if (error.response?.status === 401 && !original?._retry && !isAuthEndpoint) {
+      original._retry = true
+      try {
+        refreshing = refreshing || api.post('/auth/refresh-token')
+        await refreshing
+        refreshing = null
+        return api(original)
+      } catch {
+        refreshing = null
+        window.location.href = '/login'
       }
     }
     return Promise.reject(error)
@@ -32,6 +32,7 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: (data) => api.post('/auth/login', data),
+  logout: () => api.post('/auth/logout'),
   me: () => api.get('/auth/me'),
 }
 

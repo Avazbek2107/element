@@ -363,7 +363,7 @@ export default function Layout({ children }) {
   const navigate         = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const handleLogout = () => { logout(); navigate('/login') }
+  const handleLogout = async () => { await logout(); navigate('/login') }
   const closeSidebar = () => setSidebarOpen(false)
 
   return (

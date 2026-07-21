@@ -33,6 +33,7 @@ services:
       ESKIZ_EMAIL: ${ESKIZ_EMAIL:-}
       ESKIZ_PASSWORD: ${ESKIZ_PASSWORD:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       TZ: Asia/Tashkent
     depends_on:
       db:

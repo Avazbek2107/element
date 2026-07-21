@@ -8,28 +8,22 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      authApi.me()
-        .then(({ data }) => setUser(data))
-        .catch(() => localStorage.clear())
-        .finally(() => setLoading(false))
-    } else {
-      setLoading(false)
-    }
+    // Token httpOnly cookie'da — JS'dan ko'rinmaydi, shuning uchun har doim
+    // /me so'rovini yuborib ko'ramiz; cookie mavjud bo'lsa server useri qaytaradi.
+    authApi.me()
+      .then(({ data }) => setUser(data))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false))
   }, [])
 
   const login = async (username, password) => {
-    const { data } = await authApi.login({ username, password })
-    localStorage.setItem('access_token', data.access_token)
-    localStorage.setItem('refresh_token', data.refresh_token)
-    const { data: me } = await authApi.me()
+    const { data: me } = await authApi.login({ username, password })
     setUser(me)
     return me
   }
 
-  const logout = () => {
-    localStorage.clear()
+  const logout = async () => {
+    try { await authApi.logout() } catch { /* baribir tozalaymiz */ }
     setUser(null)
   }
 

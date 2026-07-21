@@ -1,3 +1,6 @@
+import os
+os.environ.setdefault("COOKIE_SECURE", "false")  # test muhiti HTTP, Secure cookie saqlanmaydi
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -70,6 +73,7 @@ def make_user(db_session, role=UserRole.admin, **kwargs):
     return user
 
 
-def auth_headers(user: User) -> dict:
+def auth_cookies(user: User) -> dict:
+    """Cookie asosidagi autentifikatsiya uchun — headers o'rniga cookies= parametriga beriladi."""
     token = create_access_token({"sub": str(user.id), "role": user.role})
-    return {"Authorization": f"Bearer {token}"}
+    return {"access_token": token}

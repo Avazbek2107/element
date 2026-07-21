@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ESKIZ_EMAIL: Optional[str] = None
     ESKIZ_PASSWORD: Optional[str] = None
     SENTRY_DSN: Optional[str] = None
+    COOKIE_SECURE: bool = True
 
     class Config:
         env_file = ".env"
