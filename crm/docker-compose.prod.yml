@@ -54,5 +54,21 @@ services:
     depends_on:
       - backend
 
+  backup:
+    build: ./backup
+    restart: always
+    environment:
+      PGHOST: db
+      PGUSER: crm_user
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: crm_db
+      RETENTION_DAYS: 14
+      BACKUP_INTERVAL_HOURS: 24
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../backups:/backups
+
 volumes:
   postgres_data:
