@@ -63,6 +63,15 @@ def test_refresh_token_flow(client, db_session):
     assert "access_token" in resp.json()
 
 
+def test_login_rate_limited_after_too_many_attempts(client, db_session):
+    make_user(db_session, role=UserRole.teacher, username="ustoz_rl")
+    for _ in range(10):
+        resp = client.post("/api/auth/login", json={"username": "ustoz_rl", "password": "notogri"})
+        assert resp.status_code == 401
+    blocked = client.post("/api/auth/login", json={"username": "ustoz_rl", "password": "notogri"})
+    assert blocked.status_code == 429
+
+
 def test_access_token_cannot_be_used_as_refresh(client, db_session):
     user = make_user(db_session, role=UserRole.teacher, username="ustoz4")
     login_resp = client.post("/api/auth/login", json={"username": "ustoz4", "password": "test12345"})

@@ -39,6 +39,9 @@ def db_session():
 
 @pytest.fixture()
 def client(db_session):
+    from app.utils.rate_limit import reset as _reset_rate_limit
+    _reset_rate_limit()
+
     def _override_get_db():
         yield db_session
 

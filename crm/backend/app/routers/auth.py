@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User, UserRole
@@ -8,12 +8,14 @@ from app.utils.auth import (
     create_access_token, create_refresh_token,
     decode_token, get_current_user,
 )
+from app.utils.rate_limit import check_rate_limit
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    check_rate_limit(f"login:{request.client.host}", max_attempts=10, window_seconds=300)
     user = db.query(User).filter(
         (User.username == body.username) | (User.email == body.username),
         User.is_active == True,
@@ -28,7 +30,8 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+def register(body: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    check_rate_limit(f"register:{request.client.host}", max_attempts=5, window_seconds=3600)
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Bu email allaqachon ro'yxatdan o'tgan")
     if db.query(User).filter(User.username == body.username).first():
