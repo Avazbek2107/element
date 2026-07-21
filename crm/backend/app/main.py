@@ -2,9 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, students, groups, tests, stats, attendance, users, results, rooms, materials, ai, telegram, payments, assessments, superadmin, audit, messages
 import app.models  # noqa: F401 — barcha modellarni ro'yxatdan o'tkazish (Alembic autogenerate uchun ham kerak)
+from app.config import settings
 
 # Jadval sxemasi endi Alembic orqali boshqariladi (ishga tushishda entrypoint.sh
 # "alembic upgrade head" ni chaqiradi) — bu yerda create_all/xom SQL migratsiya yo'q.
+
+if settings.SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(dsn=settings.SENTRY_DSN, traces_sample_rate=0.1, send_default_pii=False)
 
 app = FastAPI(title="O'quv Markazi CRM", version="1.0.0")
 

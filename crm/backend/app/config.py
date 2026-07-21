@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: Optional[str] = None
     ESKIZ_EMAIL: Optional[str] = None
     ESKIZ_PASSWORD: Optional[str] = None
+    SENTRY_DSN: Optional[str] = None
 
     class Config:
         env_file = ".env"

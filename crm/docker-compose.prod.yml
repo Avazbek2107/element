@@ -30,6 +30,7 @@ services:
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       ESKIZ_EMAIL: ${ESKIZ_EMAIL:-}
       ESKIZ_PASSWORD: ${ESKIZ_PASSWORD:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
       TZ: Asia/Tashkent
     depends_on:
       db:
@@ -51,6 +52,17 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+
+  monitor:
+    build: ./monitor
+    restart: always
+    environment:
+      HEALTH_URL: http://backend:8000/api/health
+      CHECK_INTERVAL_SECONDS: 300
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      ALERT_TELEGRAM_CHAT_ID: ${ALERT_TELEGRAM_CHAT_ID:-}
     depends_on:
       - backend
 

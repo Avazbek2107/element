@@ -32,6 +32,7 @@ services:
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       ESKIZ_EMAIL: ${ESKIZ_EMAIL:-}
       ESKIZ_PASSWORD: ${ESKIZ_PASSWORD:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
       TZ: Asia/Tashkent
     depends_on:
       db:
